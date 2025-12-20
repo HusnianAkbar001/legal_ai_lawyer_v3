@@ -17,6 +17,10 @@ class LLMService:
         return os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
     @staticmethod
+    def _groq_base():
+        return os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+
+    @staticmethod
     def embed(text_or_texts):
         """
         Industry standard:
@@ -37,17 +41,28 @@ class LLMService:
             is_batch,
             len(inputs),
         )
-        if provider in {"openai", "openrouter", "deepseek", "grok"}:
-            key = (
-                os.getenv("OPENAI_API_KEY")
-                or os.getenv("OPENROUTER_API_KEY")
-                or os.getenv("DEEPSEEK_API_KEY")
-                or os.getenv("GROK_API_KEY")
-            )
+        if provider in {"openai", "openrouter", "deepseek", "grok", "groq"}:
+            # Select appropriate key based on provider
+            if provider == "groq":
+                key = os.getenv("GROQ_API_KEY")
+            elif provider == "openrouter":
+                key = os.getenv("OPENROUTER_API_KEY")
+            elif provider == "deepseek":
+                key = os.getenv("DEEPSEEK_API_KEY")
+            elif provider == "grok":
+                key = os.getenv("GROK_API_KEY")
+            else:
+                key = os.getenv("OPENAI_API_KEY")
             if not key:
                 raise RuntimeError("Missing embedding API key")
 
-            url = f"{LLMService._openai_base()}/embeddings"
+            # Use correct base URL for embeddings
+            if provider == "groq":
+                base_url = LLMService._groq_base()
+            else:
+                base_url = LLMService._openai_base()
+            
+            url = f"{base_url}/embeddings"
             r = requests.post(
                 url,
                 headers={
@@ -120,11 +135,29 @@ class LLMService:
             {"role": "user", "content": user_payload},
         ]
 
-        if provider in {"openai", "openrouter", "deepseek", "grok"}:
-            key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY") or os.getenv("DEEPSEEK_API_KEY") or os.getenv("GROK_API_KEY")
+        if provider in {"openai", "openrouter", "deepseek", "grok", "groq"}:
+            # Select appropriate key based on provider
+            if provider == "groq":
+                key = os.getenv("GROQ_API_KEY")
+            elif provider == "openrouter":
+                key = os.getenv("OPENROUTER_API_KEY")
+            elif provider == "deepseek":
+                key = os.getenv("DEEPSEEK_API_KEY")
+            elif provider == "grok":
+                key = os.getenv("GROK_API_KEY")
+            else:
+                key = os.getenv("OPENAI_API_KEY")
+            
             if not key:
-                raise RuntimeError("Missing chat API key")
-            url = f"{LLMService._openai_base()}/chat/completions"
+                raise RuntimeError(f"Missing chat API key for provider: {provider}")
+            
+            # Use correct base URL for chat
+            if provider == "groq":
+                base_url = LLMService._groq_base()
+            else:
+                base_url = LLMService._openai_base()
+            
+            url = f"{base_url}/chat/completions"
             r = requests.post(url, headers={
                 "Authorization": f"Bearer {key}",
                 "Content-Type": "application/json"
