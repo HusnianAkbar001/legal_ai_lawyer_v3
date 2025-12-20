@@ -1,0 +1,1624 @@
+openapi: 3.0.3
+info:
+  title: Legal Lawyer AI API
+  version: "1.0.0"
+  description: Swagger spec generated from the provided Postman collection.
+servers:
+  - url: http://localhost:5000
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Rights
+  - name: Templates
+  - name: Pathways
+  - name: Checklists
+  - name: Drafts
+  - name: Chat
+  - name: Reminders
+  - name: Admin
+  - name: Content
+  - name: Support
+  - name: Lawyers
+  - name: Health
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    AnyObject:
+      type: object
+      additionalProperties: true
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+        error: { type: string }
+        details: { $ref: "#/components/schemas/AnyObject" }
+
+    OkIdResponse:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+          format: int64
+
+    PaginationMeta:
+      type: object
+      required: [page, perPage, total, totalPages, hasNext, hasPrev]
+      properties:
+        page: { type: integer, minimum: 1 }
+        perPage: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+        hasNext: { type: boolean }
+        hasPrev: { type: boolean }
+
+    SupportContactRequest:
+      type: object
+      required: [fullName, email, phone, subject, description]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 200 }
+        email: { type: string, format: email, minLength: 3, maxLength: 255 }
+        phone: { type: string, minLength: 1, maxLength: 50 }
+        subject: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, minLength: 1 }
+
+    FeedbackRequest:
+      type: object
+      required: [rating, comment]
+      properties:
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, minLength: 1 }
+
+    LawyerPublic:
+      type: object
+      required: [id, name, email, phone, category, profilePicturePath]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        category: { type: string }
+        profilePicturePath: { type: string }
+
+    PaginatedLawyersPublic:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/LawyerPublic" }
+        meta: { $ref: "#/components/schemas/PaginationMeta" }
+
+    LawyerAdmin:
+      type: object
+      required: [id, fullName, email, phone, category, profilePicturePath, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: integer, format: int64 }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        category: { type: string }
+        profilePicturePath: { type: string }
+        isActive: { type: boolean }
+        createdAt: { type: string, nullable: true }
+        updatedAt: { type: string, nullable: true }
+
+    PaginatedLawyersAdmin:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/LawyerAdmin" }
+        meta: { $ref: "#/components/schemas/PaginationMeta" }
+
+    ContactMessage:
+      type: object
+      required: [id, fullName, email, phone, subject, description, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        subject: { type: string }
+        description: { type: string }
+        createdAt: { type: string, nullable: true }
+
+    PaginatedContactMessages:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ContactMessage" }
+        meta: { $ref: "#/components/schemas/PaginationMeta" }
+
+    FeedbackItem:
+      type: object
+      required: [id, userId, rating, comment, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        userId: { type: integer, format: int64 }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string }
+        createdAt: { type: string, nullable: true }
+
+    PaginatedFeedback:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/FeedbackItem" }
+        meta: { $ref: "#/components/schemas/PaginationMeta" }
+
+security: []  # default none; per-route add as needed
+
+paths:
+
+  /api/v1/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+
+  # -------------------- AUTH --------------------
+  /api/v1/auth/signup:
+    post:
+      tags: [Auth]
+      summary: Signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              name: Ahmed Khan
+              email: ahmed@example.com
+              phone: "03001234567"
+              cnic: "12345-1234567-1"
+              password: "SecurePass@123"
+              city: Lahore
+              gender: male
+              age: 28
+              fatherName: Khan Sahib
+              fatherCnic: "11111-1111111-1"
+              motherName: Begum Sahiba
+              motherCnic: "22222-2222222-2"
+              totalSiblings: 3
+              brothers: 2
+              sisters: 1
+              timezone: Asia/Karachi
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "400": { description: Bad Request, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              email: ahmed@example.com
+              password: "SecurePass@123"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "401": { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              refreshToken: YOUR_REFRESH_TOKEN_HERE
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "401": { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  /api/v1/auth/verify-email:
+    get:
+      tags: [Auth]
+      summary: Verify email
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "400": { description: Invalid token, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Forgot password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              email: ahmed@example.com
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              token: YOUR_RESET_TOKEN_HERE
+              newPassword: "NewSecure@Pass456"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+
+  /api/v1/auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              currentPassword: "SecurePass@123"
+              newPassword: "NewSecure@Pass789"
+              confirmPassword: "NewSecure@Pass789"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "401": { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  # -------------------- USERS --------------------
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      summary: Get current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "401": { description: Unauthorized }
+    put:
+      tags: [Users]
+      summary: Update current user
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              name: Ahmed Updated
+              phone: "03009876543"
+              city: Karachi
+              age: 29
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+
+  /api/v1/users/me/avatar:
+    post:
+      tags: [Users]
+      summary: Upload avatar
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200": { description: Success }
+
+  /api/v1/users/me/bookmarks:
+    post:
+      tags: [Users]
+      summary: Add bookmark
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              itemType: right
+              itemId: 1
+      responses:
+        "200": { description: Success }
+    get:
+      tags: [Users]
+      summary: List bookmarks
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Success }
+
+  /api/v1/users/me/bookmarks/{bookmarkId}:
+    delete:
+      tags: [Users]
+      summary: Delete bookmark
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: bookmarkId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  /api/v1/users/me/activity:
+    post:
+      tags: [Users]
+      summary: Log activity
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              eventType: viewed_right
+              payload:
+                rightId: 5
+                timestamp: "2025-01-15T10:30:00Z"
+      responses:
+        "200": { description: Success }
+    get:
+      tags: [Users]
+      summary: Get activity
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Success }
+
+  # -------------------- RIGHTS --------------------
+  /api/v1/rights:
+    get:
+      tags: [Rights]
+      summary: List rights
+      parameters:
+        - in: query
+          name: category
+          required: false
+          schema: { type: string }
+        - in: query
+          name: language
+          required: false
+          schema: { type: string }
+      responses:
+        "200": { description: Success }
+    post:
+      tags: [Rights]
+      summary: Create right (Admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              topic: Right to Education
+              body: Every child has the right to free education...
+              category: education
+              language: en
+              tags: [education, children, rights]
+      responses:
+        "200": { description: Success }
+
+  /api/v1/rights/{rightId}:
+    get:
+      tags: [Rights]
+      summary: Get single right
+      parameters:
+        - in: path
+          name: rightId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+    put:
+      tags: [Rights]
+      summary: Update right (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: rightId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              body: Updated body text...
+              tags: [education, updated]
+      responses:
+        "200": { description: Success }
+    delete:
+      tags: [Rights]
+      summary: Delete right (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: rightId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  # -------------------- TEMPLATES --------------------
+  /api/v1/templates:
+    get:
+      tags: [Templates]
+      summary: List templates
+      parameters:
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: language
+          schema: { type: string }
+      responses:
+        "200": { description: Success }
+    post:
+      tags: [Templates]
+      summary: Create template (Admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              title: Rent Agreement
+              description: Standard rent agreement template
+              body: This agreement is made between {{landlordName}} and {{tenantName}}...
+              category: property
+              language: en
+              tags: [rent, property]
+      responses:
+        "200": { description: Success }
+
+  /api/v1/templates/{templateId}:
+    get:
+      tags: [Templates]
+      summary: Get single template
+      parameters:
+        - in: path
+          name: templateId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+    put:
+      tags: [Templates]
+      summary: Update template (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: templateId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              title: Updated Rent Agreement
+              body: Updated template body...
+      responses:
+        "200": { description: Success }
+    delete:
+      tags: [Templates]
+      summary: Delete template (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: templateId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  # -------------------- PATHWAYS --------------------
+  /api/v1/pathways:
+    get:
+      tags: [Pathways]
+      summary: List pathways
+      parameters:
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: language
+          schema: { type: string }
+      responses:
+        "200": { description: Success }
+    post:
+      tags: [Pathways]
+      summary: Create pathway (Admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              title: Divorce Process in Pakistan
+              summary: Step-by-step guide for divorce proceedings
+              steps:
+                - step: 1
+                  title: File petition
+                  description: File in family court
+                - step: 2
+                  title: Notice period
+                  description: 90 days waiting period
+              category: family
+              language: en
+              tags: [divorce, family-law]
+      responses:
+        "200": { description: Success }
+
+  /api/v1/pathways/{pathwayId}:
+    get:
+      tags: [Pathways]
+      summary: Get single pathway
+      parameters:
+        - in: path
+          name: pathwayId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+    put:
+      tags: [Pathways]
+      summary: Update pathway (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: pathwayId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+      responses:
+        "200": { description: Success }
+    delete:
+      tags: [Pathways]
+      summary: Delete pathway (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: pathwayId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  # -------------------- CHECKLISTS --------------------
+  /api/v1/checklists/categories:
+    get:
+      tags: [Checklists]
+      summary: List checklist categories
+      responses:
+        "200": { description: Success }
+    post:
+      tags: [Checklists]
+      summary: Create category (Admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              title: Court Documents
+              icon: "📄"
+              order: 1
+      responses:
+        "200": { description: Success }
+
+  /api/v1/checklists/categories/{categoryId}:
+    put:
+      tags: [Checklists]
+      summary: Update category (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+      responses:
+        "200": { description: Success }
+    delete:
+      tags: [Checklists]
+      summary: Delete category (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  /api/v1/checklists/items:
+    get:
+      tags: [Checklists]
+      summary: List checklist items
+      parameters:
+        - in: query
+          name: categoryId
+          required: false
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+    post:
+      tags: [Checklists]
+      summary: Create item (Admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              categoryId: 1
+              text: CNIC Copy
+              required: true
+              order: 1
+      responses:
+        "200": { description: Success }
+
+  /api/v1/checklists/items/{itemId}:
+    put:
+      tags: [Checklists]
+      summary: Update item (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: itemId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+      responses:
+        "200": { description: Success }
+    delete:
+      tags: [Checklists]
+      summary: Delete item (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: itemId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  # -------------------- DRAFTS --------------------
+  /api/v1/drafts/generate:
+    post:
+      tags: [Drafts]
+      summary: Generate draft
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              templateId: 1
+              answers:
+                landlordName: Ali Ahmed
+                tenantName: Usman Khan
+                rent: "50000"
+                address: DHA Phase 5, Lahore
+              userSnapshot:
+                name: Ahmed Khan
+                cnic: "12345-1234567-1"
+                phone: "03001234567"
+      responses:
+        "200": { description: Success }
+
+  /api/v1/drafts:
+    get:
+      tags: [Drafts]
+      summary: List drafts
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Success }
+
+  /api/v1/drafts/{draftId}:
+    get:
+      tags: [Drafts]
+      summary: Get single draft
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: draftId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+    delete:
+      tags: [Drafts]
+      summary: Delete draft
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: draftId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  /api/v1/drafts/{draftId}/export:
+    get:
+      tags: [Drafts]
+      summary: Export draft
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: draftId
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: format
+          required: true
+          schema:
+            type: string
+            enum: [txt, pdf, docx]
+      responses:
+        "200":
+          description: File stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  # -------------------- CHAT --------------------
+  /api/v1/chat/ask:
+    post:
+      tags: [Chat]
+      summary: Ask question (new or existing conversation)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: X-Safe-Mode
+          required: false
+          schema: { type: string }
+          description: Set to "1" to enable safe mode.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            examples:
+              newConversation:
+                value:
+                  question: "What are the divorce laws in Pakistan?"
+                  language: en
+              existingConversation:
+                value:
+                  question: "What documents are required?"
+                  language: en
+                  conversationId: 1
+      responses:
+        "200": { description: Success }
+
+  /api/v1/chat/conversations:
+    get:
+      tags: [Chat]
+      summary: List conversations
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        "200": { description: Success }
+
+  /api/v1/chat/conversations/{conversationId}/messages:
+    get:
+      tags: [Chat]
+      summary: Get conversation messages
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 30 }
+      responses:
+        "200": { description: Success }
+
+  /api/v1/chat/conversations/{conversationId}:
+    put:
+      tags: [Chat]
+      summary: Rename conversation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              title: "Divorce Law Discussion"
+      responses:
+        "200": { description: Success }
+    delete:
+      tags: [Chat]
+      summary: Delete conversation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  # -------------------- REMINDERS --------------------
+  /api/v1/reminders:
+    post:
+      tags: [Reminders]
+      summary: Create reminder
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              title: Court Hearing
+              notes: Family court hearing at 10 AM
+              scheduledAt: "2025-01-20T10:00:00Z"
+              timezone: Asia/Karachi
+      responses:
+        "200": { description: Success }
+    get:
+      tags: [Reminders]
+      summary: List reminders
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Success }
+
+  /api/v1/reminders/{reminderId}:
+    put:
+      tags: [Reminders]
+      summary: Update reminder
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: reminderId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              title: Updated Court Hearing
+              isDone: true
+      responses:
+        "200": { description: Success }
+    delete:
+      tags: [Reminders]
+      summary: Delete reminder
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: reminderId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  /api/v1/reminders/register-device-token:
+    post:
+      tags: [Reminders]
+      summary: Register device token
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              platform: android
+              token: fcm_device_token_here_very_long_string
+      responses:
+        "200": { description: Success }
+
+  # -------------------- ADMIN KNOWLEDGE --------------------
+  /api/v1/admin/knowledge/upload:
+    post:
+      tags: [Admin]
+      summary: Upload knowledge file
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                language:
+                  type: string
+                  example: en
+      responses:
+        "200": { description: Success }
+
+  /api/v1/admin/knowledge/url:
+    post:
+      tags: [Admin]
+      summary: Ingest knowledge URL
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              url: https://example.com/legal-article
+              title: Legal Article Title
+              language: en
+      responses:
+        "200": { description: Success }
+
+  /api/v1/admin/knowledge/sources:
+    get:
+      tags: [Admin]
+      summary: List knowledge sources
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Success }
+
+  /api/v1/admin/knowledge/sources/{sourceId}/retry:
+    post:
+      tags: [Admin]
+      summary: Retry knowledge source
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+
+  /api/v1/admin/knowledge/sources/{sourceId}:
+    delete:
+      tags: [Admin]
+      summary: Delete knowledge source
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: sourceId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success }
+  # -------------------- ADMIN USERS --------------------
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: List users (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: perPage
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200 }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "401": { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+    post:
+      tags: [Admin]
+      summary: Create user (Admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              name: "Ayesha Khan"
+              email: "ayesha@example.com"
+              phone: "03001234567"
+              cnic: "12345-1234567-1"
+              password: "StrongPass@123"
+              isAdmin: false
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "400": { description: Bad Request, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "401": { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "409": { description: Conflict, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  /api/v1/admin/users/{userId}:
+    put:
+      tags: [Admin]
+      summary: Update user (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnyObject" }
+            example:
+              name: "Ayesha Khan Updated"
+              phone: "03009998888"
+              isAdmin: false
+              password: "NewStrongPass@123"
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "400": { description: Bad Request, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "401": { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "404": { description: Not Found, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+    delete:
+      tags: [Admin]
+      summary: Soft delete user (Admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Success, content: { application/json: { schema: { $ref: "#/components/schemas/AnyObject" } } } }
+        "401": { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "404": { description: Not Found, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  # -------------------- CONTENT --------------------
+  /api/v1/content/manifest:
+    get:
+      tags: [Content]
+      summary: Get manifest
+      responses:
+        "200": { description: Success }
+
+  /api/v1/content/rights.json:
+    get:
+      tags: [Content]
+      summary: Get rights JSON
+      responses:
+        "200": { description: Success }
+
+  /api/v1/content/templates.json:
+    get:
+      tags: [Content]
+      summary: Get templates JSON
+      responses:
+        "200": { description: Success }
+
+  # -------------------- SUPPORT --------------------
+  /api/v1/support/contact:
+    post:
+      tags: [Support]
+      summary: Submit contact-us message
+      description: Requires a valid user token. Returns created message id.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupportContactRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkIdResponse" }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/support/feedback:
+    post:
+      tags: [Support]
+      summary: Submit feedback
+      description: Requires a valid user token. Returns created feedback id.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FeedbackRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkIdResponse" }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # -------------------- LAWYERS (PUBLIC) --------------------
+  /api/v1/lawyers:
+    get:
+      tags: [Lawyers]
+      summary: List active lawyers (paginated)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedLawyersPublic" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # -------------------- ADMIN (MISSING) --------------------
+  /api/v1/admin/lawyers/categories:
+    get:
+      tags: [Admin]
+      summary: List allowed lawyer categories (Admin only)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/lawyers:
+    get:
+      tags: [Admin]
+      summary: List lawyers (Admin only, paginated)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedLawyersAdmin" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+    post:
+      tags: [Admin]
+      summary: Create lawyer (Admin only)
+      description: Multipart form-data required. Profile picture file is mandatory.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, fullName, email, phone, category]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                fullName: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string }
+                category: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkIdResponse" }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/lawyers/{lawyerId}:
+    get:
+      tags: [Admin]
+      summary: Get lawyer by id (Admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: lawyerId
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LawyerAdmin" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+    put:
+      tags: [Admin]
+      summary: Update lawyer (Admin only)
+      description: Supports multipart/form-data (optional file) or application/json.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: lawyerId
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+                fullName: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string }
+                category: { type: string }
+                isActive: { type: boolean }
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string }
+                category: { type: string }
+                isActive: { type: boolean }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkIdResponse" }
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+    delete:
+      tags: [Admin]
+      summary: Delete lawyer (Admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: lawyerId
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/contact-messages:
+    get:
+      tags: [Admin]
+      summary: List contact messages (Admin only, paginated)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedContactMessages" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/contact-messages/{msgId}:
+    get:
+      tags: [Admin]
+      summary: Get contact message by id (Admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: msgId
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContactMessage" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/feedback:
+    get:
+      tags: [Admin]
+      summary: List feedback (Admin only, paginated)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedFeedback" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/admin/feedback/{fbId}:
+    get:
+      tags: [Admin]
+      summary: Get feedback by id (Admin only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: fbId
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeedbackItem" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }

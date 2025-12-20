@@ -1,0 +1,148 @@
+############################################
+# GLOBAL / OS / EDITORS
+############################################
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+*.bak
+
+############################################
+# SECRETS / ENV
+############################################
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+
+############################################
+# PYTHON (Backend)
+############################################
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual envs
+.venv/
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+.python-version
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Type check / lint
+.mypy_cache/
+.pytype/
+.ruff_cache/
+
+# Flask / app runtime
+instance/
+*.sqlite3
+*.db
+
+# Logs
+logs/
+*.log
+
+# Celery / beat
+celerybeat-schedule
+celerybeat.pid
+
+############################################
+# DOCKER
+############################################
+**/.dockerignore
+**/docker-compose.override.yml
+
+############################################
+# NODE / FRONTEND (Vite/React)
+############################################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun.lock
+bun.lockb
+
+# Vite / build outputs
+dist/
+build/
+.cache/
+.vite/
+*.tsbuildinfo
+
+# Env files (frontend too)
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+
+############################################
+# CAPACITOR / CORDOVA
+############################################
+# Capacitor plugins/config can be generated
+**/capacitor.plugins.json
+
+############################################
+# ANDROID (Gradle)
+############################################
+**/.gradle/
+**/build/
+**/*.iml
+**/.idea/
+**/local.properties
+
+# Android Studio / IntelliJ
+**/.externalNativeBuild/
+**/.cxx/
+**/captures/
+**/lint-results*.xml
+**/lint-results*.html
+
+# APK/AAB
+**/*.apk
+**/*.aab
+
+############################################
+# iOS (Xcode)
+############################################
+**/Pods/
+**/.symlinks/
+**/DerivedData/
+**/*.xcuserstate
+**/*.xcworkspace/xcuserdata/
+**/*.xcodeproj/xcuserdata/
+**/*.xcodeproj/project.xcworkspace/
+**/xcuserdata/
+**/*.moved-aside
+**/*.pbxuser
+**/*.mode1v3
+**/*.mode2v3
+**/*.perspectivev3
+**/*.xccheckout
+**/*.xcscmblueprint
+
+############################################
+# OPTIONAL: Keep these tracked if you want
+############################################
+# If you WANT to commit built web assets in Android/iOS, remove these lines:
+**/android/app/src/main/assets/public/
+**/ios/App/App/public/
