@@ -60,16 +60,23 @@ def upgrade():
     with op.batch_alter_table('feedback', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_feedback_user_id'), ['user_id'], unique=False)
 
-    with op.batch_alter_table('checklist_attachments', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_checklist_attachments_item_id'))
-        batch_op.drop_index(batch_op.f('ix_checklist_attachments_user_id'))
-
-    op.drop_table('checklist_attachments')
-    with op.batch_alter_table('checklist_progress', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_checklist_progress_item_id'))
-        batch_op.drop_index(batch_op.f('ix_checklist_progress_user_id'))
-
-    op.drop_table('checklist_progress')
+    # Safe drop: only drop if tables exist
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_tables = inspector.get_table_names()
+    
+    if 'checklist_attachments' in existing_tables:
+        with op.batch_alter_table('checklist_attachments', schema=None) as batch_op:
+            batch_op.drop_index(batch_op.f('ix_checklist_attachments_item_id'))
+            batch_op.drop_index(batch_op.f('ix_checklist_attachments_user_id'))
+        op.drop_table('checklist_attachments')
+    
+    if 'checklist_progress' in existing_tables:
+        with op.batch_alter_table('checklist_progress', schema=None) as batch_op:
+            batch_op.drop_index(batch_op.f('ix_checklist_progress_item_id'))
+            batch_op.drop_index(batch_op.f('ix_checklist_progress_user_id'))
+        op.drop_table('checklist_progress')
+    
     with op.batch_alter_table('knowledge_sources', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('uq_knowledge_sources_content_hash'))
 
@@ -93,38 +100,45 @@ def downgrade():
     with op.batch_alter_table('knowledge_sources', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('uq_knowledge_sources_content_hash'), ['content_hash'], unique=True)
 
-    op.create_table('checklist_progress',
-    sa.Column('id', sa.BIGINT(), autoincrement=True, nullable=False),
-    sa.Column('user_id', sa.BIGINT(), autoincrement=False, nullable=False),
-    sa.Column('item_id', sa.BIGINT(), autoincrement=False, nullable=False),
-    sa.Column('is_done', sa.BOOLEAN(), autoincrement=False, nullable=False),
-    sa.Column('done_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
-    sa.Column('updated_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
-    sa.ForeignKeyConstraint(['item_id'], ['checklist_items.id'], name=op.f('checklist_progress_item_id_fkey'), ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('checklist_progress_user_id_fkey'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('checklist_progress_pkey')),
-    sa.UniqueConstraint('user_id', 'item_id', name=op.f('uq_checklist_progress_user_item'), postgresql_include=[], postgresql_nulls_not_distinct=False)
-    )
-    with op.batch_alter_table('checklist_progress', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_checklist_progress_user_id'), ['user_id'], unique=False)
-        batch_op.create_index(batch_op.f('ix_checklist_progress_item_id'), ['item_id'], unique=False)
+    # Recreate tables only if they don't exist
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_tables = inspector.get_table_names()
+    
+    if 'checklist_progress' not in existing_tables:
+        op.create_table('checklist_progress',
+        sa.Column('id', sa.BIGINT(), autoincrement=True, nullable=False),
+        sa.Column('user_id', sa.BIGINT(), autoincrement=False, nullable=False),
+        sa.Column('item_id', sa.BIGINT(), autoincrement=False, nullable=False),
+        sa.Column('is_done', sa.BOOLEAN(), autoincrement=False, nullable=False),
+        sa.Column('done_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
+        sa.Column('updated_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
+        sa.ForeignKeyConstraint(['item_id'], ['checklist_items.id'], name=op.f('checklist_progress_item_id_fkey'), ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('checklist_progress_user_id_fkey'), ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id', name=op.f('checklist_progress_pkey')),
+        sa.UniqueConstraint('user_id', 'item_id', name=op.f('uq_checklist_progress_user_item'), postgresql_include=[], postgresql_nulls_not_distinct=False)
+        )
+        with op.batch_alter_table('checklist_progress', schema=None) as batch_op:
+            batch_op.create_index(batch_op.f('ix_checklist_progress_user_id'), ['user_id'], unique=False)
+            batch_op.create_index(batch_op.f('ix_checklist_progress_item_id'), ['item_id'], unique=False)
 
-    op.create_table('checklist_attachments',
-    sa.Column('id', sa.BIGINT(), autoincrement=True, nullable=False),
-    sa.Column('user_id', sa.BIGINT(), autoincrement=False, nullable=False),
-    sa.Column('item_id', sa.BIGINT(), autoincrement=False, nullable=False),
-    sa.Column('file_key', sa.VARCHAR(length=512), autoincrement=False, nullable=False),
-    sa.Column('original_name', sa.VARCHAR(length=255), autoincrement=False, nullable=False),
-    sa.Column('mimetype', sa.VARCHAR(length=120), autoincrement=False, nullable=True),
-    sa.Column('size_bytes', sa.BIGINT(), autoincrement=False, nullable=True),
-    sa.Column('created_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
-    sa.ForeignKeyConstraint(['item_id'], ['checklist_items.id'], name=op.f('checklist_attachments_item_id_fkey'), ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('checklist_attachments_user_id_fkey'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('checklist_attachments_pkey'))
-    )
-    with op.batch_alter_table('checklist_attachments', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_checklist_attachments_user_id'), ['user_id'], unique=False)
-        batch_op.create_index(batch_op.f('ix_checklist_attachments_item_id'), ['item_id'], unique=False)
+    if 'checklist_attachments' not in existing_tables:
+        op.create_table('checklist_attachments',
+        sa.Column('id', sa.BIGINT(), autoincrement=True, nullable=False),
+        sa.Column('user_id', sa.BIGINT(), autoincrement=False, nullable=False),
+        sa.Column('item_id', sa.BIGINT(), autoincrement=False, nullable=False),
+        sa.Column('file_key', sa.VARCHAR(length=512), autoincrement=False, nullable=False),
+        sa.Column('original_name', sa.VARCHAR(length=255), autoincrement=False, nullable=False),
+        sa.Column('mimetype', sa.VARCHAR(length=120), autoincrement=False, nullable=True),
+        sa.Column('size_bytes', sa.BIGINT(), autoincrement=False, nullable=True),
+        sa.Column('created_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
+        sa.ForeignKeyConstraint(['item_id'], ['checklist_items.id'], name=op.f('checklist_attachments_item_id_fkey'), ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('checklist_attachments_user_id_fkey'), ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id', name=op.f('checklist_attachments_pkey'))
+        )
+        with op.batch_alter_table('checklist_attachments', schema=None) as batch_op:
+            batch_op.create_index(batch_op.f('ix_checklist_attachments_user_id'), ['user_id'], unique=False)
+            batch_op.create_index(batch_op.f('ix_checklist_attachments_item_id'), ['item_id'], unique=False)
 
     with op.batch_alter_table('feedback', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_feedback_user_id'))
