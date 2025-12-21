@@ -2,8 +2,6 @@
 
 This guide explains how to set up and run the **LegalAI** project on **Windows**. The project consists of a **Flask backend**, a **Celery worker**, and a **web-based frontend using Node.js + Capacitor**.
 
-> ⚠️ **Important:** This project does **NOT** use Flutter. All frontend commands are based on **Node.js, npm, and Capacitor**.
-
 ---
 
 ## Prerequisites
@@ -65,7 +63,11 @@ python run.py
 
 ```bash
 cd legalai-backend
+```
+```bash
 venv\Scripts\activate
+```
+```bash
 python run.py
 ```
 
@@ -77,7 +79,11 @@ python run.py
 
 ```bash
 cd legalai-backend
+```
+```bash
 venv\Scripts\activate
+```
+```bash
 celery -A app.tasks.celery_app:celery worker --loglevel=info --pool=solo
 ```
 
@@ -109,6 +115,8 @@ npx cap init
 
 ```bash
 npx cap add android
+```
+```bash
 npx cap add ios
 ```
 
@@ -116,6 +124,8 @@ npx cap add ios
 
 ```bash
 npm run build
+```
+```bash
 npx cap sync
 ```
 
@@ -123,6 +133,8 @@ npx cap sync
 
 ```bash
 npx cap run android
+```
+```bash
 npx cap run ios
 ```
 
