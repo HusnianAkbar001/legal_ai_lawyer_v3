@@ -1,127 +1,165 @@
 # LegalAI Project Setup Guide
 
-This guide explains how to set up and run the LegalAI project on Windows. Follow the steps carefully for Backend, Celery, and Frontend.
+This guide explains how to set up and run the **LegalAI** project on **Windows**. The project consists of a **Flask backend**, a **Celery worker**, and a **web-based frontend using Node.js + Capacitor**.
+
+> ⚠️ **Important:** This project does **NOT** use Flutter. All frontend commands are based on **Node.js, npm, and Capacitor**.
 
 ---
 
-## Backend Setup
+## Prerequisites
 
-### First Time Setup
+Make sure the following tools are installed:
+
+* **Python 3.10 or higher**
+* **pip**
+* **Git**
+* **Docker Desktop** (required for Redis)
+* **Node.js (LTS version)**
+* **Android Studio** (Android SDK required for Capacitor Android builds)
+
+---
+
+## Backend Setup (Flask)
+
+### First-Time Setup
 
 1. Open a terminal and navigate to the backend directory:
 
-   ```bash
-   cd legalai-backend
-   ```
+```bash
+cd legalai-backend
+```
+
 2. Create a virtual environment:
 
-   ```bash
-   python -m venv venv
-   ```
-3. Activate the virtual environment:
+```bash
+python -m venv venv
+```
 
-   ```bash
-   venv/Scripts/activate
-   ```
-4. Apply database migrations:
+3. Activate the virtual environment (Windows):
 
-   ```bash
-   flask db upgrade
-   ```
-5. Install project dependencies:
+```bash
+venv\Scripts\activate
+```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
-6. Run the backend server:
+4. Install backend dependencies:
 
-   ```bash
-   python run.py
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-### Subsequent Runs
+5. Apply database migrations:
 
-1. Navigate to the backend directory:
+```bash
+flask db upgrade
+```
 
-   ```bash
-   cd legalai-backend
-   ```
-2. Activate the virtual environment:
+6. Start the backend server:
 
-   ```bash
-   venv/Scripts/activate
-   ```
-3. Run the backend server:
+```bash
+python run.py
+```
 
-   ```bash
-   python run.py
-   ```
+---
+
+### Subsequent Runs (Backend)
+
+```bash
+cd legalai-backend
+venv\Scripts\activate
+python run.py
+```
 
 ---
 
 ## Celery Worker Setup
 
-1. Open a new terminal and navigate to the backend directory:
+> **Important:** Ensure **Docker Desktop is running** and **Redis is active** before starting Celery.
 
-   ```bash
-   cd legalai-backend
-   ```
-2. Activate the virtual environment:
-
-   ```bash
-   venv/Scripts/activate
-   ```
-3. Start the Celery worker:
-
-   ```bash
-   celery -A app.tasks.celery_app:celery worker --loglevel=info --pool=solo
-   ```
-
-> **Note:** Ensure Docker Desktop is running and Redis is active before starting Celery.
+```bash
+cd legalai-backend
+venv\Scripts\activate
+celery -A app.tasks.celery_app:celery worker --loglevel=info --pool=solo
+```
 
 ---
 
-## Frontend Setup
+## Frontend Setup (Node.js + Capacitor)
 
-### First Time Setup
-
-1. Install Flutter and Dart extensions in VS Code.
-2. Navigate to the frontend directory:
-
-   ```bash
-   cd legalai-Frontend
-   ```
-3. Initialize Flutter project:
-
-   ```bash
-   flutter create .
-   ```
-4. Verify Flutter setup:
-
-   ```bash
-   flutter doctor
-   flutter doctor --android-licenses
-   ```
-5. Get project dependencies:
-
-   ```bash
-   flutter pub get
-   ```
-6. Run the frontend in Chrome:
-
-   ```bash
-   flutter run -d chrome
-   ```
-
-### Subsequent Runs
+### First-Time Setup
 
 1. Navigate to the frontend directory:
 
-   ```bash
-   cd legalai-Frontend
-   ```
-2. Run on Android device/emulator:
+```bash
+cd legalai-frontend
+```
 
-   ```bash
-   npx cap run android
-   ```
+2. Install Node.js dependencies:
+
+```bash
+npm install
+```
+
+3. Initialize Capacitor (only required once):
+
+```bash
+npx cap init
+```
+
+4. Add supported platforms:
+
+```bash
+npx cap add android
+npx cap add ios
+```
+
+5. Build the web application and sync with Capacitor:
+
+```bash
+npm run build
+npx cap sync
+```
+
+6. Run the application:
+
+```bash
+npx cap run android
+npx cap run ios
+```
+
+---
+
+### Subsequent Runs (Frontend)
+
+```bash
+cd legalai-frontend
+```
+```bash
+npm run build
+```
+```bash
+npx cap sync
+```
+```bash
+npx cap run android
+```
+```bash
+npx cap run ios
+```
+
+---
+
+## Notes
+
+* Backend, Celery worker, and Frontend must be run in **separate terminals**.
+* Ensure `.env` files are correctly configured.
+* Celery tasks will not execute if Redis is not running.
+
+---
+
+## Recommended Startup Order
+
+1. Backend Server
+2. Celery Worker
+3. Frontend Application
+
+Following this order helps prevent runtime and dependency issues.
