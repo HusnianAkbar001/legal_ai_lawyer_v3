@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Legal Lawyer Ai</string>
     <string name="title_activity_main">Legal Lawyer Ai</string>
-    <string name="package_name">com.LegalLawyerAi.app</string>
-    <string name="custom_url_scheme">com.LegalLawyerAi.app</string>
+    <string name="package_name">com.LegalLawerAi.app</string>
+    <string name="custom_url_scheme">com.LegalLawerAi.app</string>
 </resources>

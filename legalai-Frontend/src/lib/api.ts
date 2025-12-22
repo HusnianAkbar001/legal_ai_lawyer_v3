@@ -1,6 +1,6 @@
 // API Client for Legal Lawyer AI Backend
 // const API_BASE_URL = 'http://localhost:5000/api/v1';
-const API_BASE_URL = 'http://172.16.18.152:5000/api/v1';
+const API_BASE_URL = 'http://192.168.10.3:5000/api/v1';
 
 interface ApiResponse<T = any> {
   data?: T;

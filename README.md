@@ -32,6 +32,9 @@ cd legalai-backend
 ```bash
 python -m venv venv
 ```
+```bash
+C:\Users\Zbook\AppData\Local\Programs\Python\Python310\python.exe -m venv venv
+```
 
 3. Activate the virtual environment (Windows):
 
@@ -93,6 +96,7 @@ celery -A app.tasks.celery_app:celery worker --loglevel=info --pool=solo
 
 ### First-Time Setup
 
+In legalai-Frontend\src\lib\api.ts Change Your Address in API_BASE_URL:
 1. Navigate to the frontend directory:
 
 ```bash
@@ -120,7 +124,7 @@ npx cap add android
 npx cap add ios
 ```
 
-5. Build the web application and sync with Capacitor:
+5. Build the mobile application and sync with Capacitor:
 
 ```bash
 npm run build
@@ -144,12 +148,6 @@ npx cap run ios
 
 ```bash
 cd legalai-frontend
-```
-```bash
-npm run build
-```
-```bash
-npx cap sync
 ```
 ```bash
 npx cap run android

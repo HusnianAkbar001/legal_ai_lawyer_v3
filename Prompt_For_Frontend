@@ -1,0 +1,2148 @@
+# Comprehensive Flutter App Development Prompt for AI-Powered Legal Awareness Platform
+
+## Project Overview
+You are tasked with building a **production-ready Flutter mobile application** for an AI-powered legal awareness and rights assistance platform designed for Pakistani women. The backend is fully implemented using Flask/Python with PostgreSQL, JWT authentication, RAG-based chatbot, and comprehensive API endpoints.
+
+---
+
+## Critical Requirements
+
+### Technology Stack
+- **Framework**: Flutter 3.24+ (latest stable)
+- **State Management**: Riverpod 2.5+ (modern, recommended)
+- **HTTP Client**: Dio 5.4+ with interceptors
+- **Local Storage**: flutter_secure_storage 9.0+ for tokens, hive 2.2+ for caching
+- **UI/UX**: Material Design 3 with custom theming
+- **Internationalization**: flutter_localizations (English + Urdu support)
+- **File Handling**: file_picker, path_provider
+- **PDF Generation**: pdf, printing packages
+- **Navigation**: go_router 14.0+
+- **Architecture**: Clean Architecture (Domain/Data/Presentation layers)
+- **Push Notifications**: firebase_messaging 14.0+
+- **Image Loading**: cached_network_image 3.3+
+
+### Code Quality Standards
+- **Null Safety**: Fully null-safe code
+- **Error Handling**: Comprehensive try-catch blocks, custom exception classes
+- **Logging**: Use logger package (NO sensitive data in logs)
+- **Security**: Encrypted storage for tokens, certificate pinning for API calls
+- **Performance**: Lazy loading, pagination, image caching
+- **Accessibility**: Semantic labels, screen reader support
+- **Testing**: Unit tests for business logic, widget tests for UI
+
+---
+
+## Backend Integration Details
+
+### Base Configuration
+```
+Base URL: Configurable (dev/prod)
+API Version: /api/v1
+Authentication: Bearer JWT tokens (access + refresh)
+Token Expiry: Access 15min, Refresh 30 days
+Content-Type: application/json (except file uploads: multipart/form-data)
+Headers Required:
+  - Authorization: Bearer <access_token>
+  - X-Safe-Mode: 1 (when privacy mode enabled)
+```
+
+### Authentication Flow Implementation
+
+#### 1. Signup (`POST /api/v1/auth/signup`)
+**Request Body:**
+```json
+{
+  "name": "string (required, 1-120 chars)",
+  "email": "string (required, valid email)",
+  "phone": "string (required, 5-30 chars)",
+  "cnic": "string (required, 5-30 chars, unique)",
+  "password": "string (required, 8+ chars, uppercase, lowercase, special char)",
+  "city": "string (optional)",
+  "gender": "string (optional)",
+  "age": "integer (optional)",
+  "fatherName": "string (optional)",
+  "fatherCnic": "string (optional)",
+  "motherName": "string (optional)",
+  "motherCnic": "string (optional)",
+  "totalSiblings": "integer (optional, default 0)",
+  "brothers": "integer (optional, default 0)",
+  "sisters": "integer (optional, default 0)",
+  "timezone": "string (optional, default UTC)",
+  "language": "string (optional, en or ur, default en)"
+}
+```
+
+**Response (201):**
+```json
+{
+  "user": {
+    "id": "integer",
+    "name": "string",
+    "email": "string",
+    "isEmailVerified": "boolean"
+  },
+  "accessToken": "string (JWT)",
+  "refreshToken": "string (JWT)"
+}
+```
+
+**UI Requirements:**
+- Multi-step form (Personal Info → Family Info → Account Setup)
+- Real-time password strength indicator
+- CNIC format validation (xxxxx-xxxxxxx-x)
+- Phone format validation (Pakistani format)
+- Language selection (English/Urdu) with immediate UI update
+- Show "Email verification sent" message after successful signup
+- Auto-login after signup
+
+**Error Handling:**
+- 400: Show specific field errors (email exists, weak password, etc.)
+- Handle network errors gracefully with retry option
+
+---
+
+#### 2. Login (`POST /api/v1/auth/login`)
+**Request Body:**
+```json
+{
+  "email": "string (required)",
+  "password": "string (required)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "accessToken": "string",
+  "refreshToken": "string",
+  "isEmailVerified": "boolean"
+}
+```
+
+**Response (403 - Unverified Email):**
+```json
+{
+  "message": "Email not verified"
+}
+```
+
+**UI Requirements:**
+- Email and password fields with proper input types
+- "Remember me" option (store encrypted credentials in secure storage)
+- "Forgot Password" link
+- Show specific error for unverified email with "Resend Verification" button
+- Auto-navigate to home on success
+- Biometric login option (after first successful login)
+
+**Error Handling:**
+- 401: "Invalid email or password"
+- 403: "Please verify your email first"
+- Show "Account deleted" message if user was soft-deleted
+
+---
+
+#### 3. Token Refresh (`POST /api/v1/auth/refresh`)
+**Implementation Strategy:**
+- Automatic refresh when access token expires (401 response)
+- Use Dio interceptor to intercept 401, refresh token, retry original request
+- If refresh fails, logout user completely
+- Token versioning: Backend increments version on password change (forces global logout)
+
+**Request Body:**
+```json
+{
+  "refreshToken": "string"
+}
+```
+
+**Response (200):**
+```json
+{
+  "accessToken": "string",
+  "refreshToken": "string"
+}
+```
+
+**Error Handling:**
+- 401: Logout user, navigate to login
+- Store new tokens securely immediately
+
+---
+
+#### 4. Email Verification (`GET /api/v1/auth/verify-email?token=xxx`)
+**UI Requirements:**
+- Deep link handling for email verification URL
+- Show loading spinner while verifying
+- Success: Show checkmark animation, navigate to login
+- Failure: Show error, offer "Resend Verification Email" button
+
+---
+
+#### 5. Forgot Password (`POST /api/v1/auth/forgot-password`)
+**Request Body:**
+```json
+{
+  "email": "string"
+}
+```
+
+**UI Requirements:**
+- Simple email input screen
+- Show "Reset link sent" message (always, even if email doesn't exist - security)
+- Link to login page
+
+---
+
+#### 6. Reset Password (`POST /api/v1/auth/reset-password`)
+**Request Body:**
+```json
+{
+  "token": "string (from email link)",
+  "newPassword": "string (must meet strength requirements)"
+}
+```
+
+**UI Requirements:**
+- Deep link handling for reset URL
+- New password + confirm password fields
+- Real-time password strength indicator
+- Success: Navigate to login with success message
+- Failure: Show "Invalid or expired link" with option to request new one
+
+---
+
+#### 7. Change Password (`POST /api/v1/auth/change-password`)
+**Headers Required:** Authorization: Bearer <access_token>
+
+**Request Body:**
+```json
+{
+  "currentPassword": "string",
+  "newPassword": "string",
+  "confirmPassword": "string"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Password updated",
+  "accessToken": "string (new)",
+  "refreshToken": "string (new)"
+}
+```
+
+**UI Requirements:**
+- Settings screen section
+- Current password field with visibility toggle
+- New password fields with strength indicator
+- Show "X-Safe-Mode" header warning: "Updating password in private mode will still require re-login"
+- Update stored tokens immediately on success
+- Show success snackbar
+
+**Error Handling:**
+- 400: Show specific error ("Current password incorrect", "New password must be different")
+- 403: "Cannot change password in safe mode" (if safe mode enabled)
+
+---
+
+### User Profile Management
+
+#### 1. Get Current User (`GET /api/v1/users/me`)
+**Response (200):**
+```json
+{
+  "id": "integer",
+  "name": "string",
+  "email": "string",
+  "phone": "string",
+  "cnic": "string",
+  "fatherName": "string | null",
+  "fatherCnic": "string | null",
+  "motherName": "string | null",
+  "motherCnic": "string | null",
+  "city": "string | null",
+  "gender": "string | null",
+  "age": "integer | null",
+  "totalSiblings": "integer",
+  "brothers": "integer",
+  "sisters": "integer",
+  "avatarPath": "string | null",
+  "timezone": "string",
+  "language": "string (en or ur)",
+  "isAdmin": "boolean",
+  "isEmailVerified": "boolean"
+}
+```
+
+**UI Requirements:**
+- Profile screen with avatar, name, email prominently displayed
+- Editable fields: name, phone, city, gender, age, family info, timezone, language
+- Avatar: Circular image with placeholder if null
+- Language switch: Immediately update app locale
+
+---
+
+#### 2. Update Profile (`PUT /api/v1/users/me`)
+**Rate Limit:** 30 per minute
+
+**Request Body:** (all optional)
+```json
+{
+  "name": "string",
+  "phone": "string",
+  "cnic": "string",
+  "fatherName": "string",
+  "fatherCnic": "string",
+  "motherName": "string",
+  "motherCnic": "string",
+  "city": "string",
+  "gender": "string",
+  "age": "integer",
+  "totalSiblings": "integer",
+  "brothers": "integer",
+  "sisters": "integer",
+  "timezone": "string",
+  "language": "string (en or ur)"
+}
+```
+
+**UI Requirements:**
+- Edit mode toggle on profile screen
+- Validate inputs before submission
+- Show loading indicator during update
+- Update local cache immediately on success
+- Show error snackbar on failure
+
+**Error Handling:**
+- 403: "Cannot update profile in safe mode"
+- 400: Show validation errors
+
+---
+
+#### 3. Upload Avatar (`POST /api/v1/users/me/avatar`)
+**Rate Limit:** 10 per minute
+**Content-Type:** multipart/form-data
+**Form Field:** file (JPG/PNG, max 5MB, will be resized to 512x512)
+
+**Response (200):**
+```json
+{
+  "avatarPath": "string (relative path)"
+}
+```
+
+**UI Requirements:**
+- Tap on avatar to upload
+- Image picker: Camera or Gallery
+- Show image cropper (square crop)
+- Compress image before upload
+- Show progress indicator
+- Update avatar immediately on success
+- Handle 5MB size limit with client-side compression
+
+---
+
+### Chat & RAG System (Core Feature)
+
+#### 1. Ask Question (`POST /api/v1/chat/ask`)
+**Headers:**
+- Authorization: Bearer <access_token>
+- X-Safe-Mode: 0 or 1 (if privacy mode enabled)
+
+**Request Body:**
+```json
+{
+  "question": "string (required, max 2000 chars)",
+  "language": "string (en or ur)",
+  "conversationId": "integer (optional - omit for new conversation)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "answer": "string (AI response with disclaimer appended)",
+  "conversationId": "integer (null if safe mode enabled)",
+  "contextsUsed": "integer (number of knowledge base chunks used)"
+}
+```
+
+**AI Response Behavior (Critical):**
+1. **No Knowledge Found:**
+   - EN: "I could not find relevant information in the uploaded legal documents. Please ask a specific legal question or rephrase."
+   - UR: "مجھے اپ لوڈ کیے گئے قانونی دستاویزات میں اس سوال سے متعلق معلومات نہیں ملیں۔ براہِ کرم اپنا قانونی سوال واضح انداز میں دوبارہ لکھیں۔"
+
+2. **Out-of-Domain (Non-Legal):**
+   - EN: "I can only help with legal awareness related to Pakistan's laws. Please ask a legal question."
+   - UR: "میں صرف پاکستان کے قوانین اور قانونی آگاہی کے بارے میں مدد کر سکتا ہوں۔ براہِ کرم کوئی قانونی سوال کریں۔"
+
+3. **In-Domain Answer:**
+   - Answer includes: Rights summary, legal direction, next steps, evidence checklist
+   - Always ends with disclaimer:
+     - EN: "Note: This information is provided only to explain your legal rights. If you want to take legal action, please contact a lawyer from our provided list or consult a lawyer in person. For urgent help, use the Helpline."
+     - UR: "نوٹ: یہ معلومات صرف آپ کے قانونی حقوق کی وضاحت کے لیے فراہم کی جاتی ہیں۔ اگر آپ قانونی کارروائی کرنا چاہتے ہیں تو براہِ کرم ہماری فراہم کردہ فہرست میں سے کسی وکیل سے رابطہ کریں یا ذاتی طور پر کسی وکیل سے مشورہ کریں۔ فوری مدد کے لیے ہیلپ لائن استعمال کریں۔"
+
+**UI Requirements - Chat Screen:**
+- **New Chat Button:** Creates fresh conversation (no conversationId sent)
+- **Continue Chat:** Sends existing conversationId
+- **Message Input:** Text field with send button, character counter (max 2000)
+- **Message Bubbles:** 
+  - User messages: Right-aligned, blue background
+  - Assistant messages: Left-aligned, grey background, Markdown rendering
+  - Show timestamp, "Typing..." animation for assistant
+- **Conversation Memory:** Backend automatically includes last 10 messages as context
+- **Safe Mode Indicator:** Show lock icon in app bar when enabled, with tooltip "No chat history saved"
+- **Suggested Questions:** Show 3-4 common legal scenarios as quick-start chips:
+  - "Workplace harassment guidance"
+  - "Divorce/Khula process"
+  - "Inheritance rights"
+  - "Cyber harassment complaint"
+- **Context Badge:** Show "Used X knowledge sources" below AI response
+- **Action Buttons Below Response:**
+  - "Generate Document" (if response suggests it)
+  - "View Related Rights"
+  - "Contact Lawyer"
+  - "Report Issue"
+
+**Safe Mode Behavior:**
+- Toggle in Settings or Chat screen
+- When enabled: 
+  - No conversation saved
+  - No history shown
+  - Response still works
+  - conversationId in response will be null
+- When disabled: Full conversation history
+
+**Error Handling:**
+- 400: "Question required or too long"
+- 401: Token expired, auto-refresh
+- 500: "AI service temporarily unavailable, please try again"
+
+---
+
+#### 2. List Conversations (`GET /api/v1/chat/conversations?page=1&limit=20`)
+**Query Parameters:**
+- page: integer (default 1)
+- limit: integer (default 20, max 100)
+
+**Response (200):**
+```json
+{
+  "page": "integer",
+  "limit": "integer",
+  "items": [
+    {
+      "id": "integer",
+      "title": "string (auto-generated from first question)",
+      "createdAt": "string (ISO 8601)",
+      "updatedAt": "string (ISO 8601)",
+      "lastMessageSnippet": "string (last 120 chars)"
+    }
+  ]
+}
+```
+
+**UI Requirements - Conversations List Screen:**
+- Pull-to-refresh
+- Infinite scroll pagination
+- Each card shows:
+  - Title (bold, 2 lines max with ellipsis)
+  - Last message snippet (1 line, lighter text)
+  - Time (relative: "5 min ago", "Yesterday", "Jan 15")
+- **SWIPE TO DELETE:** 
+  - Swipe left to reveal red delete button
+  - Show confirmation dialog: "Delete this conversation? This cannot be undone."
+  - Buttons: "Cancel" and "Delete"
+  - On confirm: Call DELETE endpoint
+  - Remove from list with animation
+  - Show "Conversation deleted" snackbar with optional UNDO (if you cache deleted item temporarily)
+- Swipe right: Rename (show text input dialog)
+- Tap to open conversation messages
+- Empty state: "No conversations yet. Start a new chat!"
+- Search bar to filter by title
+
+**Swipe Implementation Details:**
+- Use `flutter_slidable` package or custom Dismissible widget
+- Left swipe gesture threshold: 50% of card width
+- Smooth animation (200ms duration)
+- Haptic feedback on swipe threshold
+- Red background color reveal during swipe
+
+---
+
+#### 3. Get Conversation Messages (`GET /api/v1/chat/conversations/{conversationId}/messages?page=1&limit=30`)
+**Query Parameters:**
+- page: integer (default 1)
+- limit: integer (default 30, max 100)
+
+**Response (200):**
+```json
+{
+  "conversationId": "integer",
+  "title": "string",
+  "page": "integer",
+  "limit": "integer",
+  "items": [
+    {
+      "id": "integer",
+      "role": "string (user or assistant)",
+      "content": "string",
+      "createdAt": "string (ISO 8601)"
+    }
+  ]
+}
+```
+
+**UI Requirements - Chat Messages Screen:**
+- Reverse chronological scroll (newest at bottom)
+- Load more (pagination) when scrolling to top
+- Message grouping by date with headers
+- Show typing indicator when waiting for response
+- Copy message button (long-press on message)
+- Continue conversation from here (new question input)
+
+---
+
+#### 4. Rename Conversation (`PUT /api/v1/chat/conversations/{conversationId}`)
+**Request Body:**
+```json
+{
+  "title": "string (required, max 200 chars)"
+}
+```
+
+**UI Requirements:**
+- Show dialog with text input pre-filled with current title
+- Validate: not empty, max 200 chars
+- Update UI optimistically, rollback on error
+
+---
+
+#### 5. Delete Conversation (`DELETE /api/v1/chat/conversations/{conversationId}`)
+**UI Requirements:**
+- Confirmation dialog: "Delete this conversation? This cannot be undone."
+- Remove from list immediately (optimistic update)
+- Rollback on error
+
+---
+
+### Emergency Exit Feature (Critical Security Feature)
+
+**UI Requirements:**
+
+**Location:** 
+- Settings screen with WARNING badge
+- Quick access: Long-press app icon (if using quick actions)
+- Floating panic button on chat screen (optional, can be hidden in settings)
+
+**Button Design:**
+- Red color with shield/exit icon
+- Label: "Emergency Exit" or "Panic Button"
+- Confirmation required (to prevent accidental tap)
+
+**Behavior on Tap:**
+1. Show confirmation dialog:
+   - Title: "Emergency Exit?"
+   - Message: "This will immediately log you out, clear all app data, and remove the app from recent apps. You'll need to log in again."
+   - Buttons: "Cancel" and "EXIT NOW" (red, bold)
+
+2. On Confirm:
+   - **Immediate logout:** Clear all tokens from secure storage
+   - **Clear app cache:** Delete all local data (Hive boxes, cached images, etc.)
+   - **Clear from recent apps:** 
+     - Android: Use `moveTaskToBack(true)` followed by `SystemNavigator.pop()`
+     - iOS: Call `exit(0)` (Note: Apple discourages this, but it's the only way)
+   - **Alternative approach (recommended):** Navigate to a blank "Exited" screen, then minimize app
+   - **Set flag in persistent storage:** Mark emergency exit occurred (so on next launch, stay on login screen)
+
+3. **Implementation Code Pattern:**
+```dart
+Future<void> emergencyExit(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: Text('Emergency Exit?'),
+      content: Text('This will log you out and remove the app from recent apps.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text('Cancel'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () => Navigator.pop(context, true),
+          child: Text('EXIT NOW'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed == true) {
+    // 1. Clear tokens
+    await secureStorage.deleteAll();
+    
+    // 2. Clear Hive cache
+    await Hive.deleteFromDisk();
+    
+    // 3. Clear image cache
+    imageCache.clear();
+    imageCache.clearLiveImages();
+    
+    // 4. Set emergency exit flag
+    await prefs.setBool('emergency_exit', true);
+    
+    // 5. Navigate to blank screen
+    if (context.mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => EmergencyExitScreen()),
+        (route) => false,
+      );
+    }
+    
+    // 6. Exit app (Android: move to back, iOS: exit)
+    if (Platform.isAndroid) {
+      SystemNavigator.pop(); // Removes from recent apps
+    } else {
+      exit(0); // iOS exit
+    }
+  }
+}
+```
+
+4. **EmergencyExitScreen Widget:**
+   - Blank white screen with lock icon
+   - Text: "App closed securely"
+   - Auto-minimize after 500ms
+
+5. **On Next App Launch:**
+   - Check emergency exit flag
+   - If true, stay on login screen
+   - Clear the flag after successful login
+
+**Security Considerations:**
+- No logging of emergency exit events (privacy)
+- Ensure all sensitive data is cleared
+- Test on both Android and iOS thoroughly
+- Consider adding optional PIN protection for emergency exit button
+
+---
+
+### Rights, Templates, Pathways (Structured Legal Content)
+
+#### 1. List Rights (`GET /api/v1/rights?category=xxx&language=en`)
+**Query Parameters:**
+- category: string (optional filter)
+- language: string (en or ur)
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": "integer",
+      "topic": "string",
+      "body": "string (full legal explanation)",
+      "category": "string",
+      "language": "string",
+      "tags": ["string"]
+    }
+  ],
+  "message": "string | null (e.g., 'Content not available in selected language')"
+}
+```
+
+**UI Requirements - Rights Browse Screen:**
+- Category filter chips at top (Workplace, Family, Property, Cyber Crime, etc.)
+- Language automatically matches user preference
+- Cards with:
+  - Topic as title
+  - First 3 lines of body as preview
+  - Tags as small chips
+  - Bookmark icon (toggleable)
+- Tap to open detail screen:
+  - Full body text (Markdown rendering)
+  - Share button
+  - "Ask AI about this" button (pre-fills chat with topic)
+  - Related rights section
+- Empty state: "No rights content available in [language]"
+- Search functionality
+
+---
+
+#### 2. Get Single Right (`GET /api/v1/rights/{rightId}`)
+**Response (200):**
+```json
+{
+  "data": {
+    "id": "integer",
+    "topic": "string",
+    "body": "string",
+    "category": "string",
+    "language": "string",
+    "tags": ["string"]
+  },
+  "message": "string | null"
+}
+```
+
+**Response (404):**
+```json
+{
+  "data": null,
+  "message": "Content not available in selected language"
+}
+```
+
+---
+
+#### 3. List Templates (`GET /api/v1/templates?category=xxx&language=en`)
+**Same structure as Rights**
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": "integer",
+      "title": "string",
+      "description": "string",
+      "body": "string (with {{placeholders}})",
+      "category": "string",
+      "language": "string",
+      "tags": ["string"]
+    }
+  ],
+  "message": "string | null"
+}
+```
+
+**UI Requirements - Templates Browse Screen:**
+- Category filters
+- Cards showing:
+  - Title
+  - Description
+  - "Generate Document" button
+- Tap to open detail:
+  - Template preview (show placeholders in different color)
+  - List of required fields
+  - "Fill & Generate" button
+
+---
+
+#### 4. List Pathways (`GET /api/v1/pathways?category=xxx&language=en`)
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": "integer",
+      "title": "string",
+      "summary": "string",
+      "steps": [
+        {
+          "step": "integer",
+          "title": "string",
+          "description": "string"
+        }
+      ],
+      "category": "string",
+      "language": "string",
+      "tags": ["string"]
+    }
+  ],
+  "message": "string | null"
+}
+```
+
+**UI Requirements - Pathways Browse Screen:**
+- Step-by-step guide format
+- Each pathway card shows:
+  - Title
+  - Summary
+  - Number of steps badge
+- Detail screen:
+  - Stepper UI showing all steps
+  - Each step expandable with full description
+  - Progress indicator (if tracking completion)
+  - "Ask AI for clarification" button for each step
+  - Checklist of required documents (if applicable)
+
+---
+
+### Drafts & Document Generation
+
+#### 1. Generate Draft (`POST /api/v1/drafts/generate`)
+**Headers:** 
+- Authorization: Bearer <access_token>
+- NO X-Safe-Mode header (document generation not allowed in safe mode)
+
+**Request Body:**
+```json
+{
+  "templateId": "integer (required)",
+  "answers": {
+    "placeholderName": "value",
+    "anotherPlaceholder": "value"
+  },
+  "userSnapshot": {
+    "name": "string",
+    "cnic": "string",
+    "phone": "string",
+    "city": "string"
+  }
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "integer",
+  "title": "string",
+  "contentText": "string (generated document)",
+  "createdAt": "string (ISO 8601)"
+}
+```
+
+**UI Requirements - Document Generation Flow:**
+
+1. **Template Selection:** User picks template from browse screen
+
+2. **Form Screen:**
+   - Dynamic form based on template placeholders
+   - Extract placeholders from template body ({{xxx}})
+   - Auto-fill from user profile where possible:
+     - {{name}} → user.name
+     - {{cnic}} → user.cnic
+     - {{phone}} → user.phone
+     - {{city}} → user.city
+     - {{fatherName}} → user.fatherName
+     - etc.
+   - Show remaining fields for manual input
+   - Validation: Mark required fields
+   - Preview button (show filled template before generating)
+
+3. **Generation:**
+   - Show loading spinner
+   - On success: Navigate to draft editor
+   - On error: Show error, allow retry
+
+4. **Safe Mode Check:**
+   - If safe mode enabled, show warning: "Document generation is disabled in private mode. Disable private mode to create documents."
+
+**Error Handling:**
+- 403: "Document generation not allowed in safe mode"
+- 400: "Missing template ID or answers"
+- 404: "Template not found"
+
+---
+
+#### 2. List Drafts (`GET /api/v1/drafts`)
+**Response (200):**
+```json
+[
+  {
+    "id": "integer",
+    "title": "string",
+    "createdAt": "string (ISO 8601)"
+  }
+]
+```
+
+**UI Requirements - Drafts List Screen:**
+- List view with:
+  - Title
+  - Created date (relative)
+  - Preview icon
+  - Export icon
+  - Delete icon
+- Tap to open editor
+- Empty state: "No documents yet. Generate one from templates!"
+- Search by title
+
+---
+
+#### 3. Get Draft (`GET /api/v1/drafts/{draftId}`)
+**Response (200):**
+```json
+{
+  "id": "integer",
+  "title": "string",
+  "contentText": "string (full document text)",
+  "answers": { "object (original placeholder values)" },
+  "userSnapshot": { "object (user data at time of generation)" },
+  "createdAt": "string (ISO 8601)"
+}
+```
+
+**UI Requirements - Draft Editor Screen:**
+- Editable text field (multi-line, full screen)
+- Top app bar with:
+  - Title (editable on tap)
+  - Share button
+  - Export menu (PDF, DOCX, TXT, Copy)
+- Auto-save on text change (debounced 3 seconds)
+- Show "Saved" indicator
+- Formatting toolbar (optional: bold, italic, alignment)
+
+---
+
+#### 4. Export Draft (`GET /api/v1/drafts/{draftId}/export?format=pdf|docx|txt`)
+**Query Parameters:**
+- format: pdf | docx | txt
+
+**Response (200):**
+- Content-Type: application/pdf or application/vnd.openxmlformats-officedocument.wordprocessingml.document or text/plain
+- File download stream
+
+**For format=txt:**
+```json
+{
+  "text": "string (document text)"
+}
+```
+
+**UI Requirements:**
+- PDF Export:
+  - Show loading dialog
+  - Download file to device storage
+  - Show "Downloaded to [path]" message
+  - Option to share directly
+  - Open with external PDF viewer
+
+- DOCX Export:
+  - Same as PDF
+
+- TXT Export:
+  - Can show in-app or copy to clipboard
+
+- Copy to Clipboard:
+  - Show "Copied!" snackbar
+  - Use Clipboard API
+
+**Error Handling:**
+- 400: "Invalid format"
+- 404: "Draft not found"
+- 403: "Not your draft"
+
+---
+
+#### 5. Delete Draft (`DELETE /api/v1/drafts/{draftId}`)
+**UI Requirements:**
+- Confirmation dialog
+- Remove from list immediately
+- Show undo snackbar (optional)
+
+---
+
+### Bookmarks
+
+#### 1. Add Bookmark (`POST /api/v1/users/me/bookmarks`)
+**Request Body:**
+```json
+{
+  "itemType": "string (right | template | pathway)",
+  "itemId": "integer"
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "integer"
+}
+```
+
+**UI Requirements:**
+- Bookmark icon on right/template/pathway detail screens
+- Toggle bookmark on tap
+- Visual feedback (filled vs outline icon)
+- Show "Bookmarked" snackbar
+- Sync state across app
+
+---
+
+#### 2. List Bookmarks (`GET /api/v1/users/me/bookmarks`)
+**Response (200):**
+```json
+[
+  {
+    "id": "integer",
+    "itemType": "string",
+    "itemId": "integer"
+  }
+]
+```
+
+**UI Requirements - Bookmarks Screen:**
+- Grouped by itemType:
+  - Rights section
+  - Templates section
+  - Pathways section
+- Fetch full details for each bookmarked item
+- Tap to navigate to detail
+- Swipe to delete bookmark
+- Empty state: "No bookmarks yet"
+
+---
+
+#### 3. Delete Bookmark (`DELETE /api/v1/users/me/bookmarks/{bookmarkId}`)
+**UI Requirements:**
+- Immediate removal from list
+- Update icon state everywhere
+
+---
+
+### Reminders
+
+#### 1. Create Reminder (`POST /api/v1/reminders`)
+**Request Body:**
+```json
+{
+  "title": "string (required, max 200 chars)",
+  "notes": "string (optional)",
+  "scheduledAt": "string (ISO 8601, required)",
+  "timezone": "string (optional, defaults to user timezone)"
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "integer"
+}
+```
+
+**UI Requirements - Reminder Creation:**
+- Form fields:
+  - Title (required)
+  - Notes (optional, multi-line)
+  - Date picker
+  - Time picker
+  - Timezone (auto-filled from user profile, editable)
+- Validation: scheduledAt must be future
+- Save button
+- Success: Navigate back to reminders list
+
+**Push Notification Setup:**
+- Request notification permission on first reminder creation
+- Register device token with backend (see below)
+- Local notification as backup if push fails
+
+---
+
+#### 2. List Reminders (`GET /api/v1/reminders`)
+**Response (200):**
+```json
+[
+  {
+    "id": "integer",
+    "title": "string",
+    "notes": "string | null",
+    "scheduledAt": "string (ISO 8601)",
+    "timezone": "string",
+    "isDone": "boolean"
+  }
+]
+```
+
+**UI Requirements - Reminders List:**
+- Separate sections:
+  - Upcoming (isDone=false, scheduledAt > now)
+  - Past (scheduledAt < now)
+  - Completed (isDone=true)
+- Sort: Upcoming by soonest first
+- Cards showing:
+  - Title (bold)
+  - Notes (if exists)
+  - Time (relative + absolute)
+  - Checkbox (mark done)
+  - Edit icon
+  - Delete icon
+- Pull-to-refresh
+- Empty state: "No reminders set"
+
+---
+
+#### 3. Update Reminder (`PUT /api/v1/reminders/{reminderId}`)
+**Request Body:** (all optional)
+```json
+{
+  "title": "string",
+  "notes": "string",
+  "scheduledAt": "string (ISO 8601)",
+  "timezone": "string",
+  "isDone": "boolean"
+}
+```
+
+**UI Requirements:**
+- Edit screen same as creation
+- Toggle isDone with checkbox (instant update)
+
+---
+
+#### 4. Delete Reminder (`DELETE /api/v1/reminders/{reminderId}`)
+**UI Requirements:**
+- Swipe to delete or delete icon
+- Confirmation dialog
+- Remove from list immediately
+
+---
+
+#### 5. Register Device Token (`POST /api/v1/reminders/register-device-token`)
+**Request Body:**
+```json
+{
+  "platform": "string (android or ios)",
+  "token": "string (FCM token)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "ok": true
+}
+```
+
+**Implementation:**
+- Use firebase_messaging package
+- Request notification permission
+- Get FCM token
+- Register with backend on app startup (if user logged in)
+- Re-register on token refresh
+- Handle foreground/background/terminated notification states
+- Show local notification when reminder fires
+- Tap notification → navigate to reminder detail
+
+---
+
+### Checklists
+
+#### 1. List Checklist Categories (`GET /api/v1/checklists/categories`)
+**Response (200):**
+```json
+[
+  {
+    "id": "integer",
+    "title": "string",
+    "icon": "string (emoji or icon name)",
+    "order": "integer"
+  }
+]
+```
+
+**UI Requirements - Checklists Screen:**
+- Grid or list of categories
+- Each card:
+  - Icon (large, centered)
+  - Title
+  - Tap to view items
+- Sort by order field
+
+---
+
+#### 2. List Checklist Items (`GET /api/v1/checklists/items?categoryId=xxx`)
+**Response (200):**
+```json
+[
+  {
+    "id": "integer",
+    "categoryId": "integer",
+    "text": "string",
+    "required": "boolean",
+    "order": "integer"
+  }
+]
+```
+
+**UI Requirements - Checklist Items Screen:**
+- Show category title at top
+- List of items with checkboxes
+- Mark required items (red asterisk or "Required" badge)
+- Local checkbox state (not synced with backend unless you add progress tracking)
+- Print/export checklist option
+
+---
+
+### Lawyers Directory
+
+#### 1. List Active Lawyers (`GET /api/v1/lawyers?page=1&perPage=20`)
+**Query Parameters:**
+- page: integer (default 1)
+- perPage: integer (default 20, max 100)
+
+**Response (200):**
+```json
+{
+  "items": [
+    {
+      "id": "integer",
+      "name": "string",
+      "email": "string",
+      "phone": "string",
+      "category": "string (practice area)",
+      "profilePicturePath": "string (relative path)"
+    }
+  ],
+  "meta": {
+    "page": "integer",
+    "perPage": "integer",
+    "total": "integer",
+    "totalPages": "integer",
+    "hasNext": "boolean",
+    "hasPrev": "boolean"
+  }
+}
+```
+
+**UI Requirements - Lawyers List Screen:**
+- Search by name or category
+- Filter by category dropdown
+- Pagination (infinite scroll)
+- Cards showing:
+  - Profile picture (circular)
+  - Name
+  - Category badge
+  - Phone (tap to call with `url_launcher`)
+  - Email (tap to email with `url_launcher`)
+- Tap card to view full profile (if detail endpoint exists)
+- Empty state: "No lawyers found"
+
+**Image Loading:**
+- Construct full URL: `BASE_URL + "/" + profilePicturePath`
+- Use `cached_network_image` package
+- Show placeholder while loading
+- Handle errors gracefully
+
+---
+
+### Support & Feedback
+
+#### 1. Submit Contact Message (`POST /api/v1/support/contact`)
+**Rate Limit:** 10 per minute
+
+**Request Body:**
+```json
+{
+  "fullName": "string (required, 1-200 chars)",
+  "email": "string (required, valid email)",
+  "phone": "string (required, 1-50 chars)",
+  "subject": "string (required, 1-200 chars)",
+  "description": "string (required)"
+}
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "id": "integer"
+}
+```
+
+**UI Requirements - Contact Support Screen:**
+- Form fields (all required)
+- Submit button
+- Loading indicator during submission
+- Success: Show "Message sent!" dialog, navigate back
+- Rate limit exceeded: Show error with countdown
+
+**Error Handling:**
+- 400: Show validation errors
+- 429: "Too many requests. Please wait before trying again."
+- 503: "Support email service unavailable. Please try again later."
+
+---
+
+#### 2. Submit Feedback (`POST /api/v1/support/feedback`)
+**Rate Limit:** 10 per minute
+
+**Request Body:**
+```json
+{
+  "rating": "integer (required, 1-5)",
+  "comment": "string (required)"
+}
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "id": "integer"
+}
+```
+
+**UI Requirements - Feedback Screen:**
+- Star rating widget (1-5 stars)
+- Comment text area (required)
+- Submit button
+- Success: Show thank you message
+
+---
+
+## ADMIN-ONLY FEATURES
+
+### Admin Panel Access Control
+
+**Implementation:**
+- Check `isAdmin` field from user profile
+- Hide admin menu/features for non-admin users
+- Show admin badge on profile screen for admin users
+- Admin panel accessible via Settings → Admin Panel or dedicated bottom nav item
+
+---
+
+### Admin: User Management
+
+#### 1. List Users (`GET /api/v1/admin/users?page=1&perPage=20`)
+**Rate Limit:** 60 per minute
+
+**Response (200):**
+```json
+{
+  "items": [
+    {
+      "id": "integer",
+      "name": "string",
+      "email": "string",
+      "phone": "string",
+      "cnic": "string",
+      "isAdmin": "boolean",
+      "isEmailVerified": "boolean",
+      "isDeleted": "boolean",
+      "createdAt": "string (ISO 8601)"
+    }
+  ],
+  "meta": {
+    "page": "integer",
+    "perPage": "integer",
+    "total": "integer",
+    "totalPages": "integer",
+    "hasNext": "boolean",
+    "hasPrev": "boolean"
+  }
+}
+```
+
+**UI Requirements - Admin Users List:**
+- Search by name, email, CNIC
+- Filter: All / Admins / Deleted
+- Pagination
+- Cards showing:
+  - Name + email
+  - Phone + CNIC
+  - Badges: Admin, Verified, Deleted
+  - Actions: Edit, Delete
+- Tap to view/edit user details
+
+---
+
+#### 2. Create User (`POST /api/v1/admin/users`)
+**Rate Limit:** 20 per minute
+
+**Request Body:**
+```json
+{
+  "name": "string (required)",
+  "email": "string (required)",
+  "phone": "string (required)",
+  "cnic": "string (required)",
+  "password": "string (required)",
+  "isAdmin": "boolean (optional, default false)"
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "integer"
+}
+```
+
+**UI Requirements:**
+- Form with all required fields
+- Password strength indicator
+- Admin toggle
+- Submit button
+- Success: Show success message, refresh users list
+
+---
+
+#### 3. Update User (`PUT /api/v1/admin/users/{userId}`)
+**Request Body:** (all optional)
+```json
+{
+  "name": "string",
+  "phone": "string",
+  "isAdmin": "boolean",
+  "password": "string (optional - resets password)"
+}
+```
+
+**UI Requirements:**
+- Pre-filled form with user data
+- Optional password reset field
+- Update button
+- Success: Update list immediately
+
+---
+
+#### 4. Soft Delete User (`DELETE /api/v1/admin/users/{userId}`)
+**UI Requirements:**
+- Confirmation dialog: "Delete this user? They will be logged out immediately."
+- On confirm: Call endpoint
+- Update list to show user as deleted
+- Note: Soft delete means user can't login but data is preserved
+
+---
+
+### Admin: Knowledge Base Management (CRITICAL FEATURE)
+
+**UI Location:** 
+- Admin panel sidebar menu item: "Knowledge Base" or "Uploaded Documents"
+- Icon: Document/upload icon with badge showing total documents count
+
+#### 1. Upload Knowledge Document (`POST /api/v1/admin/knowledge/upload`)
+**Content-Type:** multipart/form-data
+**Form Fields:**
+- file: (required) PDF, DOCX, TXT, CSV, TSV, JSON, XLSX, PNG, JPG, JPEG, SVG
+- language: string (optional, default "en")
+
+**Response (201):**
+```json
+{
+  "id": "integer"
+}
+```
+
+**UI Requirements - Knowledge Upload Screen:**
+- Prominent "Upload Document" button
+- File picker (support all backend-allowed types)
+- Language selector (EN/UR)
+- Show selected file name + size
+- Upload progress indicator
+- Success: Show "Document uploaded and queued for processing", navigate to documents list
+- Error 400: Show specific error (empty file, duplicate, unsupported type)
+
+---
+
+#### 2. Ingest URL (`POST /api/v1/admin/knowledge/url`)
+**Request Body:**
+```json
+{
+  "url": "string (required)",
+  "title": "string (required)",
+  "language": "string (optional, default en)"
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "integer"
+}
+```
+
+**UI Requirements:**
+- "Add from URL" button
+- Form:
+  - URL field (validate URL format)
+  - Title field
+  - Language selector
+- Submit button
+- Success: Add to documents list
+
+---
+
+#### 3. List Knowledge Sources (`GET /api/v1/admin/knowledge/sources`)
+**Response (200):**
+```json
+[
+  {
+    "id": "integer",
+    "title": "string",
+    "type": "string (pdf, docx, url, etc.)",
+    "language": "string",
+    "status": "string (queued, processing, done, failed, invalid)",
+    "errorMessage": "string | null",
+    "createdAt": "string (ISO 8601)",
+    "updatedAt": "string (ISO 8601)"
+  }
+]
+```
+
+**UI Requirements - Knowledge Documents List Screen:**
+
+**Layout:**
+- List view with filters at top:
+  - Status filter: All / Queued / Processing / Done / Failed / Invalid
+  - Language filter: All / EN / UR
+  - Type filter: All / PDF / DOCX / URL / etc.
+
+**Each Document Card Shows:**
+- **Title** (bold, 2 lines max)
+- **Type badge** (PDF, DOCX, URL, etc.) with color coding
+- **Language badge** (EN/UR)
+- **Status with icon and color:**
+  - Queued: Yellow clock icon
+  - Processing: Blue spinner icon (animated)
+  - Done: Green checkmark icon
+  - Failed: Red error icon
+  - Invalid: Grey warning icon
+- **Timestamps:** 
+  - Uploaded: [relative time]
+  - Updated: [relative time]
+- **Error message** (if status = failed/invalid, show in red text below)
+- **Action Buttons:**
+  - **Retry button:** Only show if status = "queued" or "failed" (NOT for "invalid")
+    - Icon: Refresh/retry icon
+    - On tap: Call retry endpoint (see below)
+    - Disabled if retry limit reached (show tooltip: "Retry limit reached")
+  - **Delete button:** Always visible
+    - Icon: Trash icon
+    - On tap: Confirmation dialog, then delete
+
+**Real-time Updates:**
+- Implement polling (every 5 seconds) or WebSocket connection to refresh list
+- Highlight recently updated items with subtle animation
+- Show toast when document status changes
+
+**Empty States:**
+- No documents: "No knowledge documents uploaded yet. Upload your first legal document to power the AI chatbot."
+- No matching filters: "No documents match your filters"
+
+**Pull-to-refresh:** Enabled
+
+**Search Bar:** Search by title
+
+---
+
+#### 4. Retry Knowledge Source (`POST /api/v1/admin/knowledge/sources/{sourceId}/retry`)
+**Response (200):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Responses:**
+- 400: "This source is invalid and cannot be retried" (if status = invalid)
+- 400: "This source is already ingested (done) and cannot be retried" (if status = done)
+- 400: "Retry is only allowed when status is queued or failed"
+- 400: "Retry limit reached (10)" (if retry_count >= 10)
+- 404: "Knowledge source not found"
+
+**UI Requirements:**
+- Show retry button only for queued/failed status
+- Disable button if retry limit reached
+- On tap: 
+  - Show loading indicator on button
+  - Call endpoint
+  - Success: Update status to "queued", show toast "Retry initiated"
+  - Error: Show error message in snackbar
+
+**Retry Logic:**
+- Backend rule: Automatic retries stop at 10 attempts
+- Admin manual retry also respects this limit
+- Show retry count badge on card (e.g., "Retry 3/10")
+
+---
+
+#### 5. Delete Knowledge Source (`DELETE /api/v1/admin/knowledge/sources/{sourceId}`)
+**UI Requirements:**
+- Confirmation dialog: "Delete this document? All associated AI knowledge will be removed."
+- On confirm: Call endpoint
+- Remove from list with animation
+- Show "Document deleted" snackbar
+
+---
+
+### Admin: Lawyers Management
+
+#### 1. List Lawyer Categories (`GET /api/v1/admin/lawyers/categories`)
+**Response (200):**
+```json
+{
+  "items": ["string array of allowed categories"]
+}
+```
+
+**UI Requirements:**
+- Used in lawyer create/edit forms as dropdown options
+
+---
+
+#### 2. List All Lawyers (Admin) (`GET /api/v1/admin/lawyers?page=1&perPage=20`)
+**Response:** Same structure as public lawyers list, but includes `isActive` field
+
+**UI Requirements:**
+- Admin lawyers list shows ALL lawyers (active + inactive)
+- Filter: All / Active / Inactive
+- Edit and deactivate options
+
+---
+
+#### 3. Get Lawyer by ID (`GET /api/v1/admin/lawyers/{lawyerId}`)
+**Response (200):**
+```json
+{
+  "id": "integer",
+  "fullName": "string",
+  "email": "string",
+  "phone": "string",
+  "category": "string",
+  "profilePicturePath": "string",
+  "isActive": "boolean",
+  "createdAt": "string",
+  "updatedAt": "string"
+}
+```
+
+---
+
+#### 4. Create Lawyer (`POST /api/v1/admin/lawyers`)
+**Content-Type:** multipart/form-data
+**Rate Limit:** 20 per minute
+
+**Form Fields:**
+- file: (required) JPG/PNG, max 5MB
+- fullName: string (required)
+- email: string (required)
+- phone: string (required)
+- category: string (required, must be from allowed categories)
+
+**Response (201):**
+```json
+{
+  "id": "integer"
+}
+```
+
+**UI Requirements:**
+- Form with all fields
+- Image picker for profile picture (required)
+- Category dropdown (fetch from categories endpoint)
+- Validate: email format, phone format
+- Show image preview
+- Upload button
+- Success: Navigate to lawyers list
+
+---
+
+#### 5. Update Lawyer (`PUT /api/v1/admin/lawyers/{lawyerId}`)
+**Content-Type:** multipart/form-data OR application/json
+
+**Form Fields (multipart):**
+- file: (optional) JPG/PNG for new profile picture
+- fullName: string
+- email: string
+- phone: string
+- category: string
+- isActive: boolean
+
+**JSON Body:**
+```json
+{
+  "fullName": "string",
+  "email": "string",
+  "phone": "string",
+  "category": "string",
+  "isActive": "boolean"
+}
+```
+
+**UI Requirements:**
+- Pre-filled form
+- Optional image update
+- Active/Inactive toggle
+- Update button
+
+---
+
+#### 6. Deactivate Lawyer (`DELETE /api/v1/admin/lawyers/{lawyerId}`)
+**Note:** This sets isActive=false, not actual deletion
+
+**UI Requirements:**
+- Confirmation: "Deactivate this lawyer? They won't appear in public listings."
+- On confirm: Call endpoint
+- Update list to show lawyer as inactive
+
+---
+
+### Admin: Contact Messages
+
+#### 1. List Contact Messages (`GET /api/v1/admin/contact-messages?page=1&perPage=20`)
+**Response (200):**
+```json
+{
+  "items": [
+    {
+      "id": "integer",
+      "userId": "integer | null",
+      "fullName": "string",
+      "email": "string",
+      "phone": "string",
+      "subject": "string",
+      "createdAt": "string"
+    }
+  ],
+  "meta": { "pagination object" }
+}
+```
+
+**UI Requirements:**
+- List view sorted by newest first
+- Cards show: Name, subject, date
+- Tap to view full message
+- Search by name/subject
+- Pagination
+
+---
+
+#### 2. Get Contact Message (`GET /api/v1/admin/contact-messages/{msgId}`)
+**Response (200):**
+```json
+{
+  "id": "integer",
+  "userId": "integer | null",
+  "fullName": "string",
+  "email": "string",
+  "phone": "string",
+  "subject": "string",
+  "description": "string (full message)",
+  "createdAt": "string"
+}
+```
+
+**UI Requirements:**
+- Full message detail screen
+- Show all fields
+- "Reply" button (opens email client with pre-filled to: address)
+- "Call" button (opens dialer)
+
+---
+
+### Admin: Feedback Management
+
+#### 1. List Feedback (`GET /api/v1/admin/feedback?page=1&perPage=20`)
+**Response (200):**
+```json
+{
+  "items": [
+    {
+      "id": "integer",
+      "userId": "integer",
+      "rating": "integer (1-5)",
+      "createdAt": "string"
+    }
+  ],
+  "meta": { "pagination object" }
+}
+```
+
+**UI Requirements:**
+- List view with rating stars
+- Sort by: Newest / Highest Rating / Lowest Rating
+- Filter by rating (1-5 stars)
+- Tap to view full feedback
+
+---
+
+#### 2. Get Feedback (`GET /api/v1/admin/feedback/{fbId}`)
+**Response (200):**
+```json
+{
+  "id": "integer",
+  "userId": "integer",
+  "rating": "integer",
+  "comment": "string",
+  "createdAt": "string"
+}
+```
+
+**UI Requirements:**
+- Full feedback detail
+- Show user info (fetch from userId)
+- Star rating display
+- Full comment text
+
+---
+
+### Admin: Content Management (Rights, Templates, Pathways)
+
+**Note:** Admin can create/update/delete Rights, Templates, Pathways using endpoints:
+- `POST /api/v1/rights`
+- `PUT /api/v1/rights/{rightId}`
+- `DELETE /api/v1/rights/{rightId}`
+- Same pattern for /templates and /pathways
+
+**UI Requirements:**
+- Admin panel sections for each content type
+- CRUD forms with rich text editor for body/description fields
+- Category management (add/edit categories)
+- Tag input (comma-separated or chip input)
+- Language selector
+- Preview before saving
+- Bulk import option (optional)
+
+---
+
+### Admin: Checklist Management
+
+**Endpoints:**
+- `POST /api/v1/checklists/categories`
+- `PUT /api/v1/checklists/categories/{categoryId}`
+- `DELETE /api/v1/checklists/categories/{categoryId}`
+- `POST /api/v1/checklists/items`
+- `PUT /api/v1/checklists/items/{itemId}`
+- `DELETE /api/v1/checklists/items/{itemId}`
+
+**UI Requirements:**
+- Manage categories: Add, edit, delete, reorder
+- Manage items: Add, edit, delete, reorder within category
+- Mark items as required
+- Assign icon/emoji to categories
+
+---
+
+## Additional Features & Screens
+
+### Content Offline Caching
+
+**Implementation:**
+- Use `GET /api/v1/content/manifest` to check content version
+- Response:
+```json
+{
+  "version": "integer",
+  "files": {
+    "rights": {"url": "/api/v1/content/rights.json"},
+    "templates": {"url": "/api/v1/content/templates.json"}
+  }
+}
+```
+
+**Strategy:**
+- On app launch, check manifest version
+- Compare with cached version
+- If newer, download `rights.json` and `templates.json`
+- Store in Hive with version number
+- Use cached data for offline browsing
+
+---
+
+### Activity Logging
+
+**Endpoints:**
+- `POST /api/v1/users/me/activity` (log user activity)
+- `GET /api/v1/users/me/activity` (view activity history)
+
+**UI Requirements:**
+- Optional: Activity history screen in profile section
+- Shows recent actions with timestamps
+- Types: viewed_right, searched, created_draft, etc.
+
+---
+
+## Navigation Structure
+
+### Bottom Navigation (Main App)
+1. **Home** - Dashboard with quick actions
+2. **Chat** - AI Legal Assistant
+3. **Browse** - Rights, Templates, Pathways
+4. **Profile** - User settings and profile
+
+### Sidebar/Drawer (Optional for Additional Screens)
+- Bookmarks
+- Drafts
+- Reminders
+- Lawyers Directory
+- Checklists
+- Support & Feedback
+- Settings
+- **Admin Panel** (if isAdmin = true)
+- **Emergency Exit** (red, at bottom)
+
+### Admin Panel Navigation (Sidebar within Admin Section)
+- Dashboard (stats overview)
+- Users Management
+- **Knowledge Base / Uploaded Documents** ← CRITICAL
+- Lawyers Management
+- Contact Messages
+- Feedback
+- Rights Management
+- Templates Management
+- Pathways Management
+- Checklists Management
+
+---
+
+## Settings Screen Options
+
+- **Account**
+  - Edit Profile
+  - Change Password
+  - Language (EN/UR with immediate UI update)
+  - Timezone
+- **Privacy**
+  - Safe Mode / Privacy Mode toggle
+  - Data Privacy Policy link
+- **Notifications**
+  - Enable/Disable Push Notifications
+  - Reminder Notifications
+- **Security**
+  - Enable Biometric Login
+  - **Emergency Exit Button** (red, with warning icon)
+- **About**
+  - App Version
+  - Terms of Service
+  - Privacy Policy
+  - Contact Support
+- **Admin Panel** (only show if isAdmin = true)
+- **Logout** (red text at bottom)
+
+---
+
+## Error Handling & User Experience
+
+### Network Errors
+- Show retry button
+- Cache last successful data
+- Offline indicator in app bar
+- Queue actions for later when back online
+
+### Authentication Errors
+- 401: Auto-refresh token, retry request
+- If refresh fails: Logout and navigate to login
+- Show session expired message
+
+### Validation Errors
+- Show field-specific errors
+- Highlight invalid fields in red
+- Prevent submission until valid
+
+### Loading States
+- Show shimmer loading for lists
+- Circular progress for buttons
+- Skeleton screens for detail pages
+- Global loading overlay for critical operations
+
+### Empty States
+- Friendly illustrations
+- Clear action buttons
+- Helpful messages
+
+### Success Feedback
+- Snackbars for quick actions
+- Dialogs for important confirmations
+- Celebratory animations for milestones
+
+---
+
+## Security Implementation
+
+### Token Storage
+- Use `flutter_secure_storage` for JWT tokens
+- Never log tokens
+- Clear on logout
+
+### Certificate Pinning
+- Implement SSL pinning in Dio
+- Prevent MITM attacks
+
+### Input Sanitization
+- Validate all user inputs
+- Prevent XSS and injection
+
+### Sensitive Data
+- Never log passwords, tokens, personal info
+- Use secure flags for text fields (password obscure)
+
+---
+
+## Performance Optimization
+
+### Image Loading
+- Use `cached_network_image`
+- Compress images before upload
+- Lazy load images in lists
+
+### List Performance
+- Use `ListView.builder` for large lists
+- Implement pagination
+- Dispose controllers properly
+
+### State Management
+- Use Riverpod for efficient rebuilds
+- Implement proper provider scope
+- Avoid unnecessary widget rebuilds
+
+### Memory Management
+- Dispose streams, controllers, listeners
+- Use `AutoDisposeMixin` in Riverpod
+- Clear image cache periodically
+
+---
+
+## Testing Requirements
+
+### Unit Tests
+- API service methods
+- Business logic in providers
+- Validators and utilities
+
+### Widget Tests
+- Form validation
+- Button interactions
+- Navigation flows
+
+### Integration Tests
+- Complete user journeys
+- Authentication flow
+- Document generation flow
+
+---
+
+## Localization Requirements
+
+### Supported Languages
+- English (en)
+- Urdu (ur)
+
+### Implementation
+- Use `flutter_localizations`
+- Create `l10n.yaml` config
+- Generate ARB files for each language
+- Switch language updates entire UI immediately
+- Persist language preference
+- RTL support for Urdu (if needed for certain text)
+
+### Strings to Localize
+- All UI labels, buttons, messages
+- Error messages
+- Empty state messages
+- Validation messages
+- Disclaimer texts (EN/UR versions provided above)
+
+---
+
+## Build Configuration
+
+### Flavors (Environments)
+- Development (dev API)
+- Staging (staging API)
+- Production (prod API)
+
+### App Signing
+- Configure properly for Android and iOS
+- Follow platform-specific guidelines
+
+### App Store Listings
+- Prepare screenshots
+- Write descriptions (EN/UR)
+- Privacy policy
+- Terms of service
+
+---
+
+## Critical Implementation Notes
+
+1. **Emergency Exit Feature:**
+   - Must work even if network is down
+   - Must clear ALL local data
+   - Must prevent app from appearing in recent apps list
+   - Test thoroughly on both platforms
+
+2. **Swipe to Delete:**
+   - Implement smooth animation (200ms)
+   - Haptic feedback on threshold
+   - Confirmation dialog to prevent accidents
+   - Undo option (optional but recommended)
+
+3. **Admin Knowledge Base:**
+   - Most critical admin feature
+   - Real-time status updates (polling or WebSocket)
+   - Clear visual status indicators
+   - Retry logic must respect backend limits
+   - Handle all error cases gracefully
+
+4. **Safe Mode:**
+   - Global state (Riverpod provider)
+   - Header sent with every API request when enabled
+   - Clear visual indicator in UI
+   - Block document generation when enabled
+
+5. **Token Refresh:**
+   - Dio interceptor pattern
+   - Queue failed requests, retry after refresh
+   - Handle concurrent requests properly
+   - Logout on refresh failure
+
+6. **Image URLs:**
+   - Backend returns relative paths
+   - Frontend must construct full URL: `BASE_URL + "/" + relativePath`
+   - Example: `https://api.example.com/storage/lawyers/abc123_avatar.jpg`
+
+7. **Chat Conversation Memory:**
+   - Backend automatically includes last 10 messages
+   - Frontend just sends conversationId
+   - No need to send full history from frontend
+
+8. **Content Caching:**
+   - Implement manifest-based versioning
+   - Download full content files (rights.json, templates.json)
+   - Enable offline browsing
+
+---
+
+## Final Deliverables Expected
+
+1. **Clean Architecture Flutter App:**
+   - Domain layer (entities, repositories interfaces)
+   - Data layer (API services, repositories implementations)
+   - Presentation layer (UI, providers)
+
+2. **Complete Feature Implementation:**
+   - All user features working
+   - All admin features working
+   - Emergency exit functional
+   - Swipe to delete functional
+   - Admin knowledge base UI complete
+
+3. **Production-Ready Code:**
+   - No hardcoded values (use environment variables)
+   - Comprehensive error handling
+   - Proper logging (no sensitive data)
+   - Security best practices
+   - Performance optimized
+
+4. **Testing:**
+   - Unit tests for critical logic
+   - Widget tests for key screens
+   - Integration tests for main flows
+
+5. **Documentation:**
+   - README with setup instructions
+   - API documentation reference
+   - Build and deployment guides
+
+---
+
+## Summary
+
+This prompt provides complete specifications for a production-ready Flutter app that:
+- Fully integrates with the existing Flask/Python backend
+- Implements all user-facing features (chat, rights, templates, drafts, etc.)
+- Implements all admin features (user management, knowledge base management, lawyers, etc.)
+- Includes critical security features (emergency exit, safe mode)
+- Includes modern UX features (swipe to delete, real-time updates)
+- Follows Flutter best practices and Material Design 3
+- Supports bilingual UI (English/Urdu)
+- Optimized for performance and security
+- Ready for production deployment
+
+The app should feel modern, smooth, and professional while serving its critical social mission of empowering Pakistani women with legal awareness and guidance.
