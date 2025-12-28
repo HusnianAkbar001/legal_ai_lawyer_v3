@@ -146,3 +146,80 @@ build/
 # If you WANT to commit built web assets in Android/iOS, remove these lines:
 **/android/app/src/main/assets/public/
 **/ios/App/App/public/
+
+########################################
+# ROOT LEVEL – PROJECT SPECIFIC
+########################################
+
+# PDFs & large documents (root level)
+*.pdf
+*.zip
+
+# AI / RAG generated artifacts (future-safe)
+*.faiss
+*.index
+*.bin
+*.pkl
+
+########################################
+# DATA INGESTION (ROOT LEVEL)
+########################################
+DATA_INGESSION_PDFS/
+DATA_INGESSION_PDFS/**
+DATA_INGESSION_PDFS/**/uploaded/
+
+########################################
+# FRONTEND (WEB / NODE)
+########################################
+legalai-frontend/node_modules/
+legalai-frontend/dist/
+legalai-frontend/.env
+legalai-frontend/.env.*
+
+########################################
+# ANDROID (CAPACITOR / GRADLE – EXTRA SAFETY)
+########################################
+legalai-frontend/android/.gradle/
+legalai-frontend/android/build/
+legalai-frontend/android/app/build/
+legalai-frontend/android/local.properties
+
+########################################
+# iOS (CAPACITOR / XCODE – EXTRA SAFETY)
+########################################
+legalai-frontend/ios/App/App/public/assets/
+legalai-frontend/ios/App/App/public/assets/**
+legalai-frontend/ios/App/App/public/index.html
+
+########################################
+# BACKEND – PYTHON
+########################################
+legalai-backend/venv/
+legalai-backend/.env
+legalai-backend/.env.*
+
+# Celery runtime files
+legalai-backend/celerybeat-schedule*
+legalai-backend/*.pid
+
+########################################
+# BACKEND – RAG / STORAGE (FUTURE)
+########################################
+legalai-backend/**/storage/
+legalai-backend/**/storage/**
+legalai-backend/**/uploads/
+legalai-backend/**/uploads/**
+
+########################################
+# TEST & COVERAGE
+########################################
+.coverage
+htmlcov/
+.pytest_cache/
+
+########################################
+# TEMP / SCRATCH
+########################################
+tmp/
+temp/
+scratch/

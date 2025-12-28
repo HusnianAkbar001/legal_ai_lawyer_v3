@@ -101,7 +101,8 @@ venv\Scripts\activate
 ### Celery Worker
 
 ```bash
-celery -A app.tasks.celery_app:celery worker --loglevel=info --pool=solo
+# celery -A app.tasks.celery_app:celery worker --loglevel=info --pool=solo
+celery -A app.celery_worker:celery worker --loglevel=info --pool=solo
 ```
 
 ### Celery Beat
