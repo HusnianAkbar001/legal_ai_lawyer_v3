@@ -85,8 +85,22 @@ class AuthService:
             raise ValueError("Account already exists. Please login instead.")
 
         # ✅ Async email sending (non-blocking)
-        send_verification_email_task.delay(user.id)
+        try:
+            task = send_verification_email_task.delay(user.id)
+            current_app.logger.info(
+                f"✅ Verification email task queued: task_id={task.id} user_id={user.id}"
+            )
+        except Exception as e:
+            current_app.logger.error(
+                f"❌ CRITICAL: Failed to queue verification email task for user_id={user.id}: {e}",
+                exc_info=True
+            )
+            # Don't fail signup if email queueing fails - user can resend later
+        
         return user
+        # # ✅ Async email sending (non-blocking)
+        # send_verification_email_task.delay(user.id)
+        # return user
 
     @staticmethod
     def send_verification_email(user: User):
@@ -187,7 +201,24 @@ class AuthService:
         if not user:
             return
 
-        send_password_reset_email_task.delay(user.id)
+        try:
+            task = send_password_reset_email_task.delay(user.id)
+            current_app.logger.info(
+                f"✅ Password reset email task queued: task_id={task.id} user_id={user.id}"
+            )
+        except Exception as e:
+            current_app.logger.error(
+                f"❌ CRITICAL: Failed to queue password reset task for user_id={user.id}: {e}",
+                exc_info=True
+            )
+    # @staticmethod
+    # def request_password_reset(email: str):
+    #     """Send password reset email"""
+    #     user = User.query.filter_by(email=email.lower()).first()
+    #     if not user:
+    #         return
+
+    #     send_password_reset_email_task.delay(user.id)
 
     @staticmethod
     def reset_password(token: str, new_password: str):
