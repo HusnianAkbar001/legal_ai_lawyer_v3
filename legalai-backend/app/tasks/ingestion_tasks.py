@@ -1,7 +1,5 @@
 import time
 from .celery_app import celery
-import time
-from .celery_app import celery
 from ..extensions import db
 from ..models.rag import KnowledgeSource, KnowledgeChunk
 from ..services.llm_service import LLMService
@@ -69,6 +67,8 @@ def ingest_source(source_id: int):
                 return
 
             batch_size = 32  # industry-standard safe batch size
+            model_name = current_app.config["EMBEDDING_MODEL_NAME"]
+            expected_dim = current_app.config["EMBEDDING_DIMENSION"]
             for i in range(0, len(chunks), batch_size):
                 batch = chunks[i:i + batch_size]
 
@@ -88,6 +88,8 @@ def ingest_source(source_id: int):
                             source_id=src.id,
                             chunk_text=ch,
                             embedding=emb,
+                            embedding_model=model_name,
+                            embedding_dimension=expected_dim,
                         )
                     )
                 db.session.flush()
@@ -95,6 +97,8 @@ def ingest_source(source_id: int):
             db.session.commit()
             src.status = "done"
             src.error_message = None
+            src.embedding_model = model_name
+            src.embedding_dimension = expected_dim
             db.session.commit()
 
         except Exception as e:

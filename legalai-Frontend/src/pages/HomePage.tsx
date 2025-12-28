@@ -147,7 +147,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* DISCLAIMER_BY_LANG */}
+      {/* Disclaimer */}
       <div className="fixed bottom-20 left-4 right-4">
         <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 flex items-start gap-2">
           <Shield className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />

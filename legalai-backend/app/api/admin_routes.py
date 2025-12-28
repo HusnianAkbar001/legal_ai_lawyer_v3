@@ -3,6 +3,7 @@ import hashlib
 from flask import Blueprint, jsonify, request, g
 from werkzeug.exceptions import BadRequest, NotFound, Conflict
 from werkzeug.utils import secure_filename
+from ..models.rag_evaluation import RAGEvaluationLog
 from ..models.user import User
 from ..models.activity import ActivityEvent
 from app.models.lawyer import Lawyer
@@ -532,6 +533,21 @@ def upload_knowledge():
     if "file" not in request.files:
         raise BadRequest("Missing file")
 
+    # Validate embedding configuration before upload
+    expected_dim = current_app.config.get("EMBEDDING_DIMENSION")
+    model_name = current_app.config.get("EMBEDDING_MODEL_NAME")
+    
+    if not expected_dim or not model_name:
+        current_app.logger.error(
+            "Embedding configuration incomplete: dim=%s model=%s",
+            expected_dim,
+            model_name,
+        )
+        raise BadRequest(
+            "Embedding configuration is incomplete. Please set EMBEDDING_DIMENSION "
+            "and EMBEDDING_MODEL in environment variables."
+        )
+
     f = request.files["file"]
     if not f.filename:
         raise BadRequest("Missing file name")
@@ -671,3 +687,301 @@ def delete_source(sid):
     KnowledgeSource.query.filter_by(id=sid).delete()
     db.session.commit()
     return jsonify({"ok": True})
+
+@bp.get("/rag/metrics/summary")
+@require_auth(admin=True)
+@limiter.limit("60 per minute")
+def rag_metrics_summary():
+    """
+    Get high-level RAG performance summary.
+    
+    Returns aggregated metrics for dashboard view.
+    """
+    from sqlalchemy import func
+    
+    # Time range filter (last 7 days by default)
+    try:
+        days = int(request.args.get("days", 7))
+        days = max(1, min(days, 90))  # Limit to 1-90 days
+    except ValueError:
+        days = 7
+    
+    from datetime import datetime, timedelta
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    
+    q = RAGEvaluationLog.query.filter(RAGEvaluationLog.created_at >= cutoff)
+    
+    # Total queries
+    total_queries = q.count()
+    
+    if total_queries == 0:
+        return jsonify({
+            "period": f"Last {days} days",
+            "totalQueries": 0,
+            "summary": "No data available for this period"
+        })
+    
+    # Decision breakdown
+    decisions = (
+        db.session.query(
+            RAGEvaluationLog.decision,
+            func.count(RAGEvaluationLog.id).label("count")
+        )
+        .filter(RAGEvaluationLog.created_at >= cutoff)
+        .group_by(RAGEvaluationLog.decision)
+        .all()
+    )
+    
+    decision_stats = {d.decision: d.count for d in decisions}
+    
+    # Performance metrics
+    avg_total_time = (
+        db.session.query(func.avg(RAGEvaluationLog.total_time_ms))
+        .filter(RAGEvaluationLog.created_at >= cutoff)
+        .scalar() or 0
+    )
+    
+    avg_embedding_time = (
+        db.session.query(func.avg(RAGEvaluationLog.embedding_time_ms))
+        .filter(RAGEvaluationLog.created_at >= cutoff)
+        .scalar() or 0
+    )
+    
+    avg_llm_time = (
+        db.session.query(func.avg(RAGEvaluationLog.llm_time_ms))
+        .filter(
+            RAGEvaluationLog.created_at >= cutoff,
+            RAGEvaluationLog.llm_time_ms.isnot(None)
+        )
+        .scalar() or 0
+    )
+    
+    # Token usage
+    total_tokens_used = (
+        db.session.query(func.sum(RAGEvaluationLog.total_tokens))
+        .filter(
+            RAGEvaluationLog.created_at >= cutoff,
+            RAGEvaluationLog.total_tokens.isnot(None)
+        )
+        .scalar() or 0
+    )
+    
+    avg_tokens_per_query = (
+        db.session.query(func.avg(RAGEvaluationLog.total_tokens))
+        .filter(
+            RAGEvaluationLog.created_at >= cutoff,
+            RAGEvaluationLog.total_tokens.isnot(None)
+        )
+        .scalar() or 0
+    )
+    
+    # Quality metrics
+    in_domain_count = q.filter_by(in_domain=True).count()
+    fallback_count = q.filter_by(used_fallback=True).count()
+    error_count = q.filter_by(error_occurred=True).count()
+    
+    # Average distance for in-domain queries
+    avg_distance = (
+        db.session.query(func.avg(RAGEvaluationLog.best_distance))
+        .filter(
+            RAGEvaluationLog.created_at >= cutoff,
+            RAGEvaluationLog.in_domain == True,
+            RAGEvaluationLog.best_distance.isnot(None)
+        )
+        .scalar() or 0
+    )
+    
+    # Average contexts used
+    avg_contexts = (
+        db.session.query(func.avg(RAGEvaluationLog.contexts_used))
+        .filter(RAGEvaluationLog.created_at >= cutoff)
+        .scalar() or 0
+    )
+    
+    return jsonify({
+        "period": f"Last {days} days",
+        "totalQueries": total_queries,
+        
+        "decisions": {
+            "answer": decision_stats.get("ANSWER", 0),
+            "outOfDomain": decision_stats.get("OUT_OF_DOMAIN", 0),
+            "noHits": decision_stats.get("NO_HITS", 0),
+        },
+        
+        "quality": {
+            "inDomainRate": round(in_domain_count / total_queries * 100, 2),
+            "fallbackRate": round(fallback_count / total_queries * 100, 2),
+            "errorRate": round(error_count / total_queries * 100, 2),
+            "avgDistance": round(avg_distance, 4),
+            "avgContextsUsed": round(avg_contexts, 2),
+        },
+        
+        "performance": {
+            "avgTotalTimeMs": round(avg_total_time, 0),
+            "avgEmbeddingTimeMs": round(avg_embedding_time, 0),
+            "avgLlmTimeMs": round(avg_llm_time, 0),
+        },
+        
+        "tokens": {
+            "totalUsed": int(total_tokens_used),
+            "avgPerQuery": round(avg_tokens_per_query, 0),
+        },
+    })
+
+
+@bp.get("/rag/metrics/queries")
+@require_auth(admin=True)
+@limiter.limit("60 per minute")
+def rag_metrics_queries():
+    """
+    Get detailed query logs with pagination.
+    
+    Query params:
+    - page: page number (default 1)
+    - perPage: items per page (default 20, max 100)
+    - decision: filter by decision type (ANSWER|OUT_OF_DOMAIN|NO_HITS)
+    - inDomain: filter by in_domain (true|false)
+    - minTime: filter by minimum total_time_ms
+    - days: time range in days (default 7)
+    """
+    from datetime import datetime, timedelta
+    
+    try:
+        days = int(request.args.get("days", 7))
+        days = max(1, min(days, 90))
+    except ValueError:
+        days = 7
+    
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    
+    q = RAGEvaluationLog.query.filter(RAGEvaluationLog.created_at >= cutoff)
+    
+    # Filters
+    decision = request.args.get("decision")
+    if decision in {"ANSWER", "OUT_OF_DOMAIN", "NO_HITS"}:
+        q = q.filter_by(decision=decision)
+    
+    in_domain = request.args.get("inDomain")
+    if in_domain in {"true", "false"}:
+        q = q.filter_by(in_domain=(in_domain == "true"))
+    
+    min_time = request.args.get("minTime")
+    if min_time:
+        try:
+            q = q.filter(RAGEvaluationLog.total_time_ms >= int(min_time))
+        except ValueError:
+            pass
+    
+    # Order by most recent
+    q = q.order_by(RAGEvaluationLog.created_at.desc())
+    
+    return jsonify(
+        paginate(
+            q,
+            lambda log: {
+                "id": log.id,
+                "userId": log.user_id,
+                "conversationId": log.conversation_id,
+                "language": log.language,
+                "safeMode": log.safe_mode,
+                
+                "question": log.question_text[:200] + "..." if len(log.question_text) > 200 else log.question_text,
+                "questionLength": log.question_length,
+                
+                "decision": log.decision,
+                "inDomain": log.in_domain,
+                "usedFallback": log.used_fallback,
+                
+                "contextsFound": log.contexts_found,
+                "contextsUsed": log.contexts_used,
+                "threshold": round(log.threshold_used, 4),
+                "bestDistance": round(log.best_distance, 4) if log.best_distance else None,
+                
+                "totalTimeMs": log.total_time_ms,
+                "embeddingTimeMs": log.embedding_time_ms,
+                "llmTimeMs": log.llm_time_ms,
+                
+                "totalTokens": log.total_tokens,
+                
+                "errorOccurred": log.error_occurred,
+                "errorType": log.error_type,
+                
+                "createdAt": log.created_at.isoformat(),
+            },
+        )
+    )
+
+
+@bp.get("/rag/metrics/queries/<int:query_id>")
+@require_auth(admin=True)
+@limiter.limit("60 per minute")
+def rag_metrics_query_detail(query_id: int):
+    """
+    Get full details of a specific query evaluation.
+    
+    Includes full question, answer, and source attribution.
+    """
+    log = RAGEvaluationLog.query.get(query_id)
+    if not log:
+        raise NotFound("Query log not found")
+    
+    return jsonify({
+        "id": log.id,
+        "userId": log.user_id,
+        "conversationId": log.conversation_id,
+        "language": log.language,
+        "safeMode": log.safe_mode,
+        "isNewConversation": log.is_new_conversation,
+        
+        "question": {
+            "text": log.question_text,
+            "length": log.question_length,
+        },
+        
+        "answer": {
+            "text": log.answer_text,
+            "length": log.answer_length,
+            "usedFallback": log.used_fallback,
+            "disclaimerAdded": log.disclaimer_added,
+        },
+        
+        "rag": {
+            "threshold": log.threshold_used,
+            "bestDistance": log.best_distance,
+            "contextsFound": log.contexts_found,
+            "contextsUsed": log.contexts_used,
+            "inDomain": log.in_domain,
+            "decision": log.decision,
+        },
+        
+        "sources": {
+            "chunkIds": log.source_chunk_ids or [],
+            "titles": log.source_titles or [],
+        },
+        
+        "performance": {
+            "embeddingTimeMs": log.embedding_time_ms,
+            "llmTimeMs": log.llm_time_ms,
+            "totalTimeMs": log.total_time_ms,
+        },
+        
+        "tokens": {
+            "prompt": log.prompt_tokens,
+            "completion": log.completion_tokens,
+            "total": log.total_tokens,
+        },
+        
+        "models": {
+            "embedding": log.embedding_model,
+            "embeddingDimension": log.embedding_dimension,
+            "chat": log.chat_model,
+        },
+        
+        "error": {
+            "occurred": log.error_occurred,
+            "type": log.error_type,
+            "message": log.error_message,
+        } if log.error_occurred else None,
+        
+        "createdAt": log.created_at.isoformat(),
+    })

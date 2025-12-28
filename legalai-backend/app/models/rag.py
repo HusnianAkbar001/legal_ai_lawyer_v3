@@ -12,6 +12,8 @@ class KnowledgeSource(db.Model):
     url = db.Column(db.Text)
     language = db.Column(db.String(10), default="en")
     content_hash = db.Column(db.String(64), unique=True, nullable=True)
+    embedding_model = db.Column(db.String(100))
+    embedding_dimension = db.Column(db.Integer)
     status = db.Column(db.String(20), default="queued", nullable=False)
     error_message = db.Column(db.Text)
     retry_count = db.Column(db.Integer, nullable=False, default=0)
@@ -29,5 +31,7 @@ class KnowledgeChunk(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     source_id = db.Column(db.BigInteger, db.ForeignKey("knowledge_sources.id", ondelete="CASCADE"))
     chunk_text = db.Column(db.Text, nullable=False)
-    embedding = db.Column(Vector(3072))  # size depends on embedding model
+    embedding = db.Column(Vector())  # Dynamic dimension support
+    embedding_model = db.Column(db.String(100))
+    embedding_dimension = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

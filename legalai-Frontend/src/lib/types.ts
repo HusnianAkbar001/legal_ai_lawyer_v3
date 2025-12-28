@@ -112,6 +112,24 @@ export interface Bookmark {
   createdAt: string;
 }
 
+export interface Lawyer {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  category: string;
+  profilePicturePath: string;
+}
+
+export interface PaginationMeta {
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
 // Categories for browsing
 export const LEGAL_CATEGORIES = [
   { id: 'workplace', label: 'Workplace Harassment', labelUr: 'دفتری ہراسانی', icon: 'Briefcase' },

@@ -43,17 +43,29 @@ def extract_text_from_source(src):
             doc = Document(path)
             return "\n".join(p.text for p in doc.paragraphs)
 
-        # --- Plain text / CSV / TSV / SVG / JSON ---
+        # --- Plain text / CSV / TSV / JSON / SVG ---
         if src.source_type in {"txt", "csv", "tsv", "json", "svg"}:
             try:
                 with open(path, "r", encoding="utf-8", errors="ignore") as f:
                     raw = f.read()
+                
+                # SVG: extract text content
+                if src.source_type == "svg":
+                    try:
+                        soup = BeautifulSoup(raw, "xml")
+                        return soup.get_text(" ", strip=True)
+                    except Exception:
+                        return ""
+                
+                # JSON: pretty format
                 if src.source_type == "json":
                     try:
                         obj = jsonlib.loads(raw)
                         return jsonlib.dumps(obj, ensure_ascii=False, indent=2)
                     except Exception:
                         return raw
+                
+                # CSV/TSV: convert to readable format
                 if src.source_type in {"csv", "tsv"}:
                     delim = "\t" if src.source_type == "tsv" else ","
                     out_lines = []
@@ -63,13 +75,9 @@ def extract_text_from_source(src):
                             if row:
                                 out_lines.append("\t".join(row))
                     return "\n".join(out_lines)
+                
+                # Plain text
                 return raw
-                if src.source_type == "svg":
-                    try:
-                        soup = BeautifulSoup(raw, "xml")
-                        return soup.get_text(" ", strip=True)
-                    except Exception:
-                        return ""
             except Exception:
                 return ""
 

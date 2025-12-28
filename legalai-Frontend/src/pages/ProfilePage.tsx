@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { 
   User, Settings, LogOut, ChevronRight, Bell, Shield, Globe, 
-  Moon, Sun, Lock, Edit, Camera, Loader2 
+  Lock, Edit, Loader2, Bookmark, MessageSquare, Briefcase, HelpCircle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
@@ -205,6 +205,39 @@ export default function ProfilePage() {
               <Bell className="h-5 w-5 text-muted-foreground" />
               <span className={cn('text-foreground', isUrdu && 'font-urdu')}>
                 {t('Reminders', 'یاد دہانیاں')}
+              </span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </Link>
+
+          {/* Bookmarks */}
+          <Link to="/bookmarks" className="flex items-center justify-between px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors">
+            <div className={cn('flex items-center gap-3', isUrdu && 'flex-row-reverse')}>
+              <Bookmark className="h-5 w-5 text-muted-foreground" />
+              <span className={cn('text-foreground', isUrdu && 'font-urdu')}>
+                {t('Bookmarks', 'بک مارکس')}
+              </span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </Link>
+
+          {/* Find Lawyers */}
+          <Link to="/lawyers" className="flex items-center justify-between px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors">
+            <div className={cn('flex items-center gap-3', isUrdu && 'flex-row-reverse')}>
+              <Briefcase className="h-5 w-5 text-muted-foreground" />
+              <span className={cn('text-foreground', isUrdu && 'font-urdu')}>
+                {t('Find Lawyers', 'وکیل تلاش کریں')}
+              </span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </Link>
+
+          {/* Support */}
+          <Link to="/support" className="flex items-center justify-between px-4 py-3 border-b border-border/50 hover:bg-muted/50 transition-colors">
+            <div className={cn('flex items-center gap-3', isUrdu && 'flex-row-reverse')}>
+              <HelpCircle className="h-5 w-5 text-muted-foreground" />
+              <span className={cn('text-foreground', isUrdu && 'font-urdu')}>
+                {t('Help & Support', 'مدد اور سپورٹ')}
               </span>
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground" />

@@ -282,7 +282,7 @@ export default function ChatPage() {
         )}
       </ScrollArea>
 
-      {/* DISCLAIMER_BY_LANG */}
+      {/* Disclaimer */}
       <div className="px-4 py-2 bg-warning/5 border-t border-warning/20">
         <div className="flex items-center gap-2 text-xs text-warning-foreground">
           <Shield className="h-3 w-3 flex-shrink-0" />

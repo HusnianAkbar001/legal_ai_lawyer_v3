@@ -24,7 +24,27 @@ def init_celery(app: Flask):
         result_backend=backend,
         timezone="UTC",
         enable_utc=True,
+
+        # --- CRITICAL: force async execution ---
+        task_always_eager=False,
+        task_eager_propagates=False,
+
+        # Reliability
+        task_acks_late=True,
+        worker_prefetch_multiplier=1,
+
+        # Serialization safety
+        accept_content=["json"],
+        task_serializer="json",
+        result_serializer="json",
     )
+
+    # celery.conf.update(
+    #     broker_url=broker,
+    #     result_backend=backend,
+    #     timezone="UTC",
+    #     enable_utc=True,
+    # )
 
     class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):
@@ -33,15 +53,3 @@ def init_celery(app: Flask):
 
     celery.Task = ContextTask
 
-
-# ---- Worker-side binding (so tasks have Flask context) ----
-# This runs when celery worker imports app.tasks.celery_app
-try:
-    from .. import create_app  # noqa: E402
-
-    _flask_app = create_app()
-    init_celery(_flask_app)
-except Exception:
-    # If app factory can't be created at import time, worker will fail fast
-    # and you will see the real error in Celery logs.
-    pass

@@ -44,6 +44,6 @@ def templates_json():
         "id": t.id,
         "title": t.title,
         "category": t.category,
-        "summary": t.summary,
+        "description": t.description,
         "body": t.body
     } for t in templates])

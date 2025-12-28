@@ -25,3 +25,5 @@ pytesseract>=0.3.10
 flask-swagger-ui
 Redis
 Flask-Limiter==3.8.0
+tiktoken==0.7.0
+pytz==2025.2

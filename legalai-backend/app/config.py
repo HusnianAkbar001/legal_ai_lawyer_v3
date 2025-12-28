@@ -26,6 +26,8 @@ class Config:
     SMTP_USER = os.getenv("SMTP_USER")
     SMTP_PASS = os.getenv("SMTP_PASS")
     EMAIL_FROM = os.getenv("EMAIL_FROM")
+    FRONTEND_VERIFY_URL = os.getenv("FRONTEND_VERIFY_URL")
+    FRONTEND_RESET_URL = os.getenv("FRONTEND_RESET_URL")
     SUPPORT_INBOX_EMAIL = os.getenv("SUPPORT_INBOX_EMAIL")
     LAWYER_CATEGORIES_JSON = os.getenv("LAWYER_CATEGORIES_JSON")
     
@@ -67,3 +69,9 @@ class Config:
     RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI") or REDIS_URL
     RATELIMIT_DEFAULT = os.getenv("RATELIMIT_DEFAULT", "120 per minute")
     RATELIMIT_HEADERS_ENABLED = True
+    # Chat configuration
+    CHAT_MEMORY_LIMIT = int(os.getenv("CHAT_MEMORY_LIMIT", "10"))
+    
+    # Embedding configuration with validation
+    EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "3072"))
+    EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")

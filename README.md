@@ -1,19 +1,26 @@
-# LegalAI Project Setup Guide
+# LegalAI Project Setup Guide (Windows)
 
-This guide explains how to set up and run the **LegalAI** project on **Windows**. The project consists of a **Flask backend**, a **Celery worker**, and a **web-based frontend using Node.js + Capacitor**.
+This document explains the exact, step-by-step procedure to set up and run the **LegalAI** project on **Windows**.
+The project consists of a **Flask backend**, **Celery workers**, and a **React-based mobile application using Capacitor**.
+
+> **Important:**
+>
+> * Backend is implemented in **Flask (Python)**
+> * Mobile application is **React + Capacitor**
+> * **Flutter / Dart is NOT used**
 
 ---
 
 ## Prerequisites
 
-Make sure the following tools are installed:
+Ensure the following are installed on your system:
 
-* **Python 3.10 or higher**
-* **pip**
-* **Git**
-* **Docker Desktop** (required for Redis)
-* **Node.js (LTS version)**
-* **Android Studio** (Android SDK required for Capacitor Android builds)
+* Python 3.10 or higher
+* pip
+* Git
+* Docker Desktop (required for Redis)
+* Node.js (LTS version)
+* Android Studio (Android SDK required for Capacitor Android builds)
 
 ---
 
@@ -21,7 +28,7 @@ Make sure the following tools are installed:
 
 ### First-Time Setup
 
-1. Open a terminal and navigate to the backend directory:
+1. Navigate to the backend directory:
 
 ```bash
 cd legalai-backend
@@ -32,6 +39,7 @@ cd legalai-backend
 ```bash
 python -m venv venv
 ```
+
 ```bash
 C:\Users\Zbook\AppData\Local\Programs\Python\Python310\python.exe -m venv venv
 ```
@@ -62,14 +70,16 @@ python run.py
 
 ---
 
-### Subsequent Runs (Backend)
+### Subsequent Backend Runs
 
 ```bash
 cd legalai-backend
 ```
+
 ```bash
 venv\Scripts\activate
 ```
+
 ```bash
 python run.py
 ```
@@ -78,16 +88,26 @@ python run.py
 
 ## Celery Worker Setup
 
-> **Important:** Ensure **Docker Desktop is running** and **Redis is active** before starting Celery.
+> **Important:** Docker Desktop must be running and Redis must be active before starting Celery.
 
 ```bash
 cd legalai-backend
 ```
+
 ```bash
 venv\Scripts\activate
 ```
+
+### Celery Worker
+
 ```bash
 celery -A app.tasks.celery_app:celery worker --loglevel=info --pool=solo
+```
+
+### Celery Beat
+
+```bash
+celery -A app.celery_worker.celery beat --loglevel=info
 ```
 
 ---
@@ -96,7 +116,6 @@ celery -A app.tasks.celery_app:celery worker --loglevel=info --pool=solo
 
 ### First-Time Setup
 
-In legalai-Frontend\src\lib\api.ts Change Your Address in API_BASE_URL:
 1. Navigate to the frontend directory:
 
 ```bash
@@ -109,49 +128,204 @@ cd legalai-frontend
 npm install
 ```
 
-3. Initialize Capacitor (only required once):
+3. Install Capacitor core and CLI:
+
+```bash
+npm install @capacitor/core @capacitor/cli
+```
+
+4. Initialize Capacitor:
 
 ```bash
 npx cap init
 ```
 
-4. Add supported platforms:
+5. Install Android platform:
+
+```bash
+npm install @capacitor/android
+```
 
 ```bash
 npx cap add android
 ```
+
+6. Install iOS platform:
+
+```bash
+npm install @capacitor/ios
+```
+
 ```bash
 npx cap add ios
 ```
 
-5. Build the mobile application and sync with Capacitor:
+---
+
+## API Base URL Configuration
+
+Go to the following file:
+
+```
+legalai-frontend\src\lib\api.ts
+```
+
+Set your API base URL:
+
+```ts
+const API_BASE_URL = 'http://Your_IPv4_Address/api/v1';
+```
+
+To get your IPv4 address:
+
+```bash
+ipconfig
+```
+
+Copy the IPv4 Address from **Wireless LAN adapter Wi‑Fi** and paste it into `API_BASE_URL`.
+
+---
+
+## Android Network Security Configuration
+
+### Create network_security_config.xml
+
+**Location:**
+
+```
+android/app/src/main/res/xml/network_security_config.xml
+```
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">192.168.10.3</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
+```
+
+---
+
+## Update AndroidManifest.xml
+
+**File:**
+
+```
+android/app/src/main/AndroidManifest.xml
+```
+
+Add the following **below** `android:theme="@style/AppTheme"` and **above** `<activity>`:
+
+```xml
+android:networkSecurityConfig="@xml/network_security_config"
+android:usesCleartextTraffic="true">
+```
+
+---
+
+## Capacitor HTTP Plugin Verification
+
+```bash
+npm list @capacitor/http
+```
+
+---
+
+## Capacitor Configuration
+
+**File:**
+
+```
+legalai-frontend\capacitor.config.ts
+```
+
+```ts
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.LegalLawyerAi.app',
+  appName: 'LegalLawyerAi',
+  webDir: 'dist',
+  server: {
+    cleartext: true,
+    androidScheme: 'https'
+  },
+  plugins: {
+    CapacitorHttp: {
+      enabled: true
+    }
+  }
+};
+
+export default config;
+```
+
+---
+
+## Build and Sync Application
 
 ```bash
 npm run build
 ```
+
 ```bash
 npx cap sync
 ```
 
-6. Run the application:
+---
+
+## Android SDK Configuration
+
+Create the following file:
+
+```
+legalai-frontend\android\local.properties
+```
+
+Add this line:
+
+```
+sdk.dir=C:\\Users\\Zbook\\AppData\\Local\\Android\\Sdk
+```
+
+---
+
+## Run Mobile Application
 
 ```bash
 npx cap run android
 ```
+
 ```bash
 npx cap run ios
 ```
 
 ---
 
-### Subsequent Runs (Frontend)
+## Subsequent Frontend Runs
 
 ```bash
 cd legalai-frontend
 ```
+
 ```bash
 npx cap run android
 ```
+
+```bash
+npx cap open android
+```
+
 ```bash
 npx cap run ios
 ```
@@ -160,9 +334,9 @@ npx cap run ios
 
 ## Notes
 
-* Backend, Celery worker, and Frontend must be run in **separate terminals**.
-* Ensure `.env` files are correctly configured.
-* Celery tasks will not execute if Redis is not running.
+* Backend, Celery Worker, and Frontend must be run in **separate terminals**
+* Redis must be running for Celery tasks
+* `.env` files must be correctly configured
 
 ---
 
@@ -172,4 +346,4 @@ npx cap run ios
 2. Celery Worker
 3. Frontend Application
 
-Following this order helps prevent runtime and dependency issues.
+Following this sequence prevents runtime and dependency issues.
