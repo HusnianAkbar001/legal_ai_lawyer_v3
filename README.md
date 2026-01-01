@@ -129,16 +129,16 @@ cd legalai-frontend
 npm install
 ```
 
-3. Install Capacitor core and CLI:
-
-```bash
-npm install @capacitor/core @capacitor/cli
-```
-
-4. Initialize Capacitor:
+3. Initialize Capacitor:
 
 ```bash
 npx cap init
+```
+
+4.Install Capacitor core and CLI:
+
+```bash
+npm install @capacitor/core @capacitor/cli
 ```
 
 5. Install Android platform:
@@ -183,7 +183,7 @@ To get your IPv4 address:
 ipconfig
 ```
 
-Copy the IPv4 Address from **Wireless LAN adapter Wi‑Fi** and paste it into `API_BASE_URL`.
+Copy the IPv4 Address from **Wireless LAN adapter Wi‑Fi** and paste it into `API_BASE_URL`. You can Also use Ngrok
 
 ---
 
@@ -273,18 +273,6 @@ export default config;
 
 ---
 
-## Build and Sync Application
-
-```bash
-npm run build
-```
-
-```bash
-npx cap sync
-```
-
----
-
 ## Android SDK Configuration
 
 Create the following file:
@@ -296,10 +284,20 @@ legalai-frontend\android\local.properties
 Add this line:
 
 ```
-sdk.dir=C:\\Users\\Zbook\\AppData\\Local\\Android\\Sdk
+sdk.dir=C:\\Users\\{Put_Your_User}\\AppData\\Local\\Android\\Sdk
 ```
 
 ---
+
+## Build and Sync Application
+
+```bash
+npm run build
+```
+
+```bash
+npx cap sync
+```
 
 ## Run Mobile Application
 

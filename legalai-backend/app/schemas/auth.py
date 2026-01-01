@@ -12,7 +12,11 @@ class SignupSchema(Schema):
     city = fields.Str(load_default=None, data_key="city")
     gender = fields.Str(load_default=None, data_key="gender")
     age = fields.Int(load_default=None, data_key="age")
-
+    province = fields.Str(
+        required=True,
+        data_key="province",
+        validate=validate.OneOf(["Punjab", "Sindh", "KP", "Balochistan", "ICT"]),
+    )
     fatherName = fields.Str(load_default=None, data_key="fatherName")
     fatherCnic = fields.Str(load_default=None, data_key="fatherCnic")
     motherName = fields.Str(load_default=None, data_key="motherName")

@@ -68,6 +68,7 @@ class AuthService:
             city=data.get("city"),
             gender=data.get("gender"),
             age=data.get("age"),
+            province=data["province"],
             total_siblings=data.get("totalSiblings", 0),
             brothers=data.get("brothers", 0),
             sisters=data.get("sisters", 0),
