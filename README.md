@@ -174,7 +174,7 @@ legalai-frontend\src\lib\api.ts
 Set your API base URL:
 
 ```ts
-const API_BASE_URL = 'http://Your_IPv4_Address/api/v1';
+const API_BASE_URL = 'https://unflexible-zora-rostrally.ngrok-free.dev/api/v1';
 ```
 
 To get your IPv4 address:
@@ -200,19 +200,23 @@ android/app/src/main/res/xml/network_security_config.xml
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">192.168.10.3</domain>
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-    </domain-config>
 
+    <!-- HTTPS only (Production + Ngrok) -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+
+    <!-- Ngrok domain explicitly trusted -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">
+            unflexible-zora-rostrally.ngrok-free.dev
+        </domain>
+    </domain-config>
+
 </network-security-config>
+
 ```
 
 ---
@@ -228,8 +232,7 @@ android/app/src/main/AndroidManifest.xml
 Add the following **below** `android:theme="@style/AppTheme"` and **above** `<activity>`:
 
 ```xml
-android:networkSecurityConfig="@xml/network_security_config"
-android:usesCleartextTraffic="true">
+android:networkSecurityConfig="@xml/network_security_config">
 ```
 
 ---
@@ -258,7 +261,6 @@ const config: CapacitorConfig = {
   appName: 'LegalLawyerAi',
   webDir: 'dist',
   server: {
-    cleartext: true,
     androidScheme: 'https'
   },
   plugins: {
