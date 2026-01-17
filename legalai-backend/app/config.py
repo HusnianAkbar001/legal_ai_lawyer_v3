@@ -9,9 +9,6 @@ class Config:
     DEBUG = ENV == "development"
 
     SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
-    # DATABASE_URL = os.getenv("DATABASE_URL")
-    # SQLALCHEMY_DATABASE_URI = DATABASE_URL
-    # SQLALCHEMY_TRACK_MODIFICATIONS = False
     DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("SQLALCHEMY_DATABASE_URI")
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -20,7 +17,6 @@ class Config:
     JWT_REFRESH_EXPIRES = timedelta(days=int(os.getenv("JWT_REFRESH_DAYS", "30")))
     JWT_ALGORITHM = "HS256"
 
-    # Email
     SMTP_HOST = os.getenv("SMTP_HOST")
     SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "True").lower() == "true"
@@ -32,11 +28,9 @@ class Config:
     SUPPORT_INBOX_EMAIL = os.getenv("SUPPORT_INBOX_EMAIL")
     LAWYER_CATEGORIES_JSON = os.getenv("LAWYER_CATEGORIES_JSON")
     
-    # Admin (super admin from env)
     SUPERADMIN_EMAIL = os.getenv("SUPERADMIN_EMAIL")
     SUPERADMIN_PASSWORD = os.getenv("SUPERADMIN_PASSWORD")
 
-    # Storage
     STORAGE_BASE = os.getenv("STORAGE_BASE", os.path.abspath("storage/uploads"))
     MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "30"))
     ALLOWED_EXTS = {
@@ -47,32 +41,26 @@ class Config:
     }
 
 
-    # RAG / LLM
-    EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai")  # openai / anthropic / deepseek / openrouter / grok
+    EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai") 
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
     CHAT_PROVIDER = os.getenv("CHAT_PROVIDER", "openai")
     CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
     RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
 
-    # Push
     FCM_SERVER_KEY = os.getenv("FCM_SERVER_KEY")
     APNS_KEY_ID = os.getenv("APNS_KEY_ID")
     APNS_TEAM_ID = os.getenv("APNS_TEAM_ID")
     APNS_BUNDLE_ID = os.getenv("APNS_BUNDLE_ID")
     APNS_AUTH_KEY_PATH = os.getenv("APNS_AUTH_KEY_PATH")
 
-    # Celery / Redis
     REDIS_URL = os.getenv("REDIS_URL")
     CELERY_BROKER_URL = REDIS_URL
     CELERY_RESULT_BACKEND = REDIS_URL
 
-    # Rate limiting (Redis) - project-wide defaults
     RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI") or REDIS_URL
     RATELIMIT_DEFAULT = os.getenv("RATELIMIT_DEFAULT", "120 per minute")
     RATELIMIT_HEADERS_ENABLED = True
-    # Chat configuration
     CHAT_MEMORY_LIMIT = int(os.getenv("CHAT_MEMORY_LIMIT", "10"))
     
-    # Embedding configuration with validation
     EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "3072"))
     EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")

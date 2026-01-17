@@ -22,13 +22,10 @@ class PushService:
 
     @staticmethod
     def send_apns(tokens: list[str], title: str, body: str, data=None):
-        # Minimal APNS placeholder. In production use apns2 or a worker service.
-        # We keep it safe/no-op if keys not set.
         if not tokens:
             return
         if not current_app.config.get("APNS_KEY_ID"):
             return
-        # Implement via apns2 if needed.
         return
 
     @staticmethod

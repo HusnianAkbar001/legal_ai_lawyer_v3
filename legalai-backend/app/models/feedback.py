@@ -14,7 +14,7 @@ class Feedback(db.Model):
         nullable=False,
     )
 
-    rating = db.Column(db.Integer, nullable=False)  # 1..5
+    rating = db.Column(db.Integer, nullable=False) 
     comment = db.Column(db.Text, nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

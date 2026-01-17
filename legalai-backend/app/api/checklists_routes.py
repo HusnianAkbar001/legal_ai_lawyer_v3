@@ -23,7 +23,6 @@ def list_items():
         "text": i.text, "required": i.required, "order": i.order
     } for i in q])
 
-# admin CRUD
 @bp.post("/categories")
 @require_auth(admin=True)
 def create_category():

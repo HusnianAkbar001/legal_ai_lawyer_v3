@@ -1,350 +1,271 @@
-# LegalAI Project Setup Guide (Windows)
+# LegalAI Project Setup Guide (Windows Only)
 
-This document explains the exact, step-by-step procedure to set up and run the **LegalAI** project on **Windows**.
-The project consists of a **Flask backend**, **Celery workers**, and a **React-based mobile application using Capacitor**.
+This is the authoritative setup guide for this repository.
+Stack: Flask API + Celery workers + Flutter app (Android device and Web).
 
-> **Important:**
->
-> * Backend is implemented in **Flask (Python)**
-> * Mobile application is **React + Capacitor**
-> * **Flutter / Dart is NOT used**
+## What This Repo Contains
+- Backend: Flask, SQLAlchemy, Alembic migrations, Celery, Redis, PostgreSQL, pgvector
+- Frontend: Flutter (Android and Web)
 
----
+## Prerequisites (Install Once)
+1) Python 3.10.x
+   - https://www.python.org/downloads/release/python-310/
+2) Git
+   - https://git-scm.com/download/win
+3) Docker Desktop (for Redis container)
+   - https://www.docker.com/products/docker-desktop/
+4) PostgreSQL 17 + pgAdmin 4
+   - https://www.postgresql.org/download/windows/
+5) Flutter SDK (stable)
+   - https://docs.flutter.dev/get-started/install/windows
+6) Android Studio (SDK + platform-tools)
+   - https://developer.android.com/studio
+7) Google Chrome (for Web)
+   - https://www.google.com/chrome/
 
-## Prerequisites
+Verify installs (PowerShell):
+```bash
+python --version
+git --version
+docker --version
+flutter --version
+```
 
-Ensure the following are installed on your system:
+## Repository Setup
+If you already have the repo locally, skip this step.
+```bash
+git clone <REPO_URL>
+cd legal_ai_lawyer_v3
+```
 
-* Python 3.10 or higher
-* pip
-* Git
-* Docker Desktop (required for Redis)
-* Node.js (LTS version)
-* Android Studio (Android SDK required for Capacitor Android builds)
+## PostgreSQL 17 Setup (pgAdmin)
+1) Install PostgreSQL 17 with pgAdmin 4.
+2) Open pgAdmin 4 and connect to your local server.
+3) Create a database user and database.
+   - Choose your own values (user, password, database name, port).
+4) Note these values because they must match your `.env` file:
+   - Host, Port, Database name, Username, Password
 
----
+## pgvector Installation (PostgreSQL 17, Windows)
+This project uses pgvector. You must install the extension before migrations.
+
+1) Download the PostgreSQL 17 Windows build from GitHub:
+   - https://github.com/andreiramani/pgvector_pgsql_windows/releases
+2) Choose the Windows x64 artifact for PostgreSQL 17.
+3) Extract the archive.
+4) Copy files into your PostgreSQL 17 installation folder:
+   - Copy `pgvector.dll` to:
+     `C:\Program Files\PostgreSQL\17\lib\`
+   - Copy `vector.control` and all `vector--*.sql` files to:
+     `C:\Program Files\PostgreSQL\17\share\extension\`
+5) Restart PostgreSQL service:
+   - Open `services.msc`
+   - Restart `postgresql-x64-17`
+6) Enable the extension inside your database:
+   - Open pgAdmin Query Tool for your database and run:
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+7) Verify:
+```sql
+SELECT extname FROM pg_extension WHERE extname = 'vector';
+```
+
+## Redis Setup (Docker)
+Run Redis in a container named `Redis`:
+```bash
+docker pull redis
+docker run -d --name Redis -p 6379:6379 redis
+docker ps
+```
 
 ## Backend Setup (Flask)
-
-### First-Time Setup
-
-1. Navigate to the backend directory:
-
+From the repo root:
 ```bash
 cd legalai-backend
 ```
 
-2. Create a virtual environment:
+### 1) Configure Environment Variables
+Open `legalai-backend\.env` and set real values. These are mandatory.
 
+Database (must match pgAdmin):
+```
+DATABASE_URL=postgresql://<db_user>:<db_password>@localhost:<db_port>/<db_name>
+SQLALCHEMY_DATABASE_URI=postgresql://<db_user>:<db_password>@localhost:<db_port>/<db_name>
+```
+
+Core:
+```
+FLASK_ENV=development
+SECRET_KEY=<set_a_strong_secret>
+```
+
+SMTP (Gmail, mandatory):
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+MAIL_USE_TLS=True
+SMTP_USER=<your_gmail_address>
+SMTP_PASS=<your_gmail_app_password>
+EMAIL_FROM=<your_gmail_address>
+SUPPORT_INBOX_EMAIL=<support_inbox_address>
+FRONTEND_VERIFY_URL=<your_frontend_verify_url>
+FRONTEND_RESET_URL=<your_frontend_reset_url>
+```
+
+Superadmin (created on startup if not present):
+```
+SUPERADMIN_EMAIL=<admin_email>
+SUPERADMIN_PASSWORD=<admin_password>
+```
+
+Redis:
+```
+REDIS_URL=redis://localhost:6379/0
+```
+
+LLM Providers (GroqCloud chat, OpenAI embeddings):
+```
+CHAT_PROVIDER=groq
+CHAT_MODEL=<your_groq_chat_model>
+GROQ_API_KEY=<your_groq_api_key>
+
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-large
+EMBEDDING_DIMENSION=3072
+OPENAI_API_KEY=<your_openai_api_key>
+```
+
+Optional providers supported by the backend:
+- Chat providers: openai, groq, openrouter, deepseek, grok, anthropic
+  - Keys: OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, GROK_API_KEY, ANTHROPIC_API_KEY
+- Embedding providers: openai, openrouter, deepseek, grok, groq
+  - Keys: OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, GROQ_API_KEY, GROK_API_KEY
+- Base URLs (optional): OPENAI_BASE_URL, OPENROUTER_BASE_URL, GROQ_BASE_URL
+
+### 2) Create Virtual Environment
 ```bash
 python -m venv venv
 ```
-
+If you have multiple Python versions:
 ```bash
-C:\Users\Zbook\AppData\Local\Programs\Python\Python310\python.exe -m venv venv
+py -3.10 -m venv venv
 ```
 
-3. Activate the virtual environment (Windows):
-
+Activate:
 ```bash
 venv\Scripts\activate
 ```
 
-4. Install backend dependencies:
-
+### 3) Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-5. Apply database migrations:
-
+### 4) Run Migrations
 ```bash
-flask db upgrade
+python -m flask --app run.py db upgrade
 ```
 
-6. Start the backend server:
-
+### 5) Start Backend API
 ```bash
 python run.py
 ```
+API health check:
+```
+http://127.0.0.1:5000/api/v1/health
+```
+Swagger UI:
+```
+http://127.0.0.1:5000/docs
+```
 
----
+## Celery Worker and Beat
+Keep Redis running before starting Celery.
 
-### Subsequent Backend Runs
-
+Worker:
 ```bash
 cd legalai-backend
-```
-
-```bash
 venv\Scripts\activate
-```
-
-```bash
-python run.py
-```
-
----
-
-## Celery Worker Setup
-
-> **Important:** Docker Desktop must be running and Redis must be active before starting Celery.
-
-```bash
-cd legalai-backend
-```
-
-```bash
-venv\Scripts\activate
-```
-
-### Celery Worker
-
-```bash
-# celery -A app.tasks.celery_app:celery worker --loglevel=info --pool=solo
 celery -A app.celery_worker:celery worker --loglevel=info --pool=solo
 ```
 
-### Celery Beat
-
+Beat:
 ```bash
-celery -A app.celery_worker.celery beat --loglevel=info
+cd legalai-backend
+venv\Scripts\activate
+celery -A app.celery_worker:celery beat --loglevel=info
 ```
 
----
-
-## Frontend Setup (Node.js + Capacitor)
-
-### First-Time Setup
-
-1. Navigate to the frontend directory:
-
+## Frontend Setup (Flutter)
+From repo root:
 ```bash
 cd legalai-frontend
 ```
 
-2. Install Node.js dependencies:
-
+### 1) Flutter Dependencies
 ```bash
-npm install
+flutter doctor
+flutter pub get
 ```
 
-3. Initialize Capacitor:
+### 2) API Base URL
+Edit:
+```
+legalai-frontend\lib\core\constants\app_constants.dart
+```
 
+For Android device (physical):
+```
+static const String apiBaseUrlDev = 'http://<YOUR_PC_IP>:5000/api/v1';
+```
+
+For Web (Chrome):
+```
+static const String apiBaseUrlDev = 'http://127.0.0.1:5000/api/v1';
+```
+
+When switching between Android device and Web, update this value.
+
+## Run on Android Device
+1) Enable Developer Options and USB Debugging on your phone.
+2) Connect the device via USB.
+3) Verify the device is detected:
 ```bash
-npx cap init
+flutter devices
 ```
-
-4.Install Capacitor core and CLI:
-
+4) Run:
 ```bash
-npm install @capacitor/core @capacitor/cli
+flutter run -d <device_id>
 ```
 
-5. Install Android platform:
-
+## Run on Web (Chrome)
 ```bash
-npm install @capacitor/android
+flutter run -d chrome
 ```
-
-```bash
-npx cap add android
-```
-
-6. Install iOS platform:
-
-```bash
-npm install @capacitor/ios
-```
-
-```bash
-npx cap add ios
-```
-
----
-
-## API Base URL Configuration
-
-Go to the following file:
-
-```
-legalai-frontend\src\lib\api.ts
-```
-
-Set your API base URL:
-
-```ts
-const API_BASE_URL = 'https://unflexible-zora-rostrally.ngrok-free.dev/api/v1';
-```
-
-To get your IPv4 address:
-
-```bash
-ipconfig
-```
-
-Copy the IPv4 Address from **Wireless LAN adapter Wi‑Fi** and paste it into `API_BASE_URL`. You can Also use Ngrok
-
----
-
-## Android Network Security Configuration
-
-### Create network_security_config.xml
-
-**Location:**
-
-```
-android/app/src/main/res/xml/network_security_config.xml
-```
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-
-    <!-- HTTPS only (Production + Ngrok) -->
-    <base-config cleartextTrafficPermitted="false">
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </base-config>
-
-    <!-- Ngrok domain explicitly trusted -->
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">
-            unflexible-zora-rostrally.ngrok-free.dev
-        </domain>
-    </domain-config>
-
-</network-security-config>
-
-```
-
----
-
-## Update AndroidManifest.xml
-
-**File:**
-
-```
-android/app/src/main/AndroidManifest.xml
-```
-
-Add the following **below** `android:theme="@style/AppTheme"` and **above** `<activity>`:
-
-```xml
-android:networkSecurityConfig="@xml/network_security_config">
-```
-
----
-
-## Capacitor HTTP Plugin Verification
-
-```bash
-npm list @capacitor/http
-```
-
----
-
-## Capacitor Configuration
-
-**File:**
-
-```
-legalai-frontend\capacitor.config.ts
-```
-
-```ts
-import type { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
-  appId: 'com.LegalLawyerAi.app',
-  appName: 'LegalLawyerAi',
-  webDir: 'dist',
-  server: {
-    androidScheme: 'https'
-  },
-  plugins: {
-    CapacitorHttp: {
-      enabled: true
-    }
-  }
-};
-
-export default config;
-```
-
----
-
-## Android SDK Configuration
-
-Create the following file:
-
-```
-legalai-frontend\android\local.properties
-```
-
-Add this line:
-
-```
-sdk.dir=C:\\Users\\{Put_Your_User}\\AppData\\Local\\Android\\Sdk
-```
-
----
-
-## Build and Sync Application
-
-```bash
-npm run build
-```
-
-```bash
-npx cap sync
-```
-
-## Run Mobile Application
-
-```bash
-npx cap run android
-```
-
-```bash
-npx cap run ios
-```
-
----
-
-## Subsequent Frontend Runs
-
-```bash
-cd legalai-frontend
-```
-
-```bash
-npx cap run android
-```
-
-```bash
-npx cap open android
-```
-
-```bash
-npx cap run ios
-```
-
----
-
-## Notes
-
-* Backend, Celery Worker, and Frontend must be run in **separate terminals**
-* Redis must be running for Celery tasks
-* `.env` files must be correctly configured
-
----
 
 ## Recommended Startup Order
+1) Redis container
+2) Backend API
+3) Celery worker
+4) Celery beat
+5) Flutter app (Android or Web)
 
-1. Backend Server
-2. Celery Worker
-3. Frontend Application
+## Common Checks
+- If migrations fail with vector errors, verify pgvector installation and `CREATE EXTENSION vector;`
+- If Celery fails to connect, verify the Redis container is running and `REDIS_URL` is correct
+- If Android device cannot reach the API, confirm the PC IP in `apiBaseUrlDev` and that the device and PC are on the same network
 
-Following this sequence prevents runtime and dependency issues.
+## Optional Tests
+Backend:
+```bash
+cd legalai-backend
+venv\Scripts\activate
+pytest
+```
+
+Frontend:
+```bash
+cd legalai-frontend
+flutter test
+```

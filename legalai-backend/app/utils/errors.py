@@ -1,6 +1,7 @@
 from flask import jsonify
 from werkzeug.exceptions import HTTPException
 from marshmallow import ValidationError
+from ..exceptions import AppError
 
 def register_error_handlers(app):
     """Register global error handlers for consistent API responses"""
@@ -20,22 +21,27 @@ def register_error_handlers(app):
 
     @app.errorhandler(ValueError)
     def handle_value_error(e):
-        """
-        Handle ValueError from service layer (409 Conflict).
-        
-        These are business logic errors.
-        Examples: duplicate email/CNIC, invalid state transitions.
-        """
-        app.logger.warning(f"Business logic validation failed: {str(e)}")
-        return jsonify({"message": str(e)}), 409
+        app.logger.warning("ValueError raised: %s", str(e))
+        return jsonify(
+            {
+                "message": "Invalid request",
+                "error": "Invalid request",
+            }
+        ), 400
 
     @app.errorhandler(HTTPException)
     def handle_http(e):
-        """Handle Werkzeug HTTP exceptions (400, 401, 403, 404, etc.)"""
-        return jsonify({
+        payload = {}
+        if isinstance(e, AppError):
+            payload = getattr(e, "details", {}) or {}
+
+        body = {
             "message": e.description,
-            "error": e.description
-        }), e.code
+            "error": getattr(e, "error", e.description),
+        }
+        if payload:
+            body["details"] = payload
+        return jsonify(body), e.code
 
     @app.errorhandler(Exception)
     def handle_any(e):
@@ -44,7 +50,7 @@ def register_error_handlers(app):
         
         Log full details but return generic message to prevent information disclosure.
         """
-        app.logger.exception(f"Unhandled exception: {type(e).__name__}: {str(e)}")
+        app.logger.exception("Unhandled exception: %s", type(e).__name__)
         return jsonify({
             "error": "Internal server error"
         }), 500

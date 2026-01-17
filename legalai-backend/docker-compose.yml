@@ -4,8 +4,7 @@ services:
     build: .
     env_file: .env
     volumes:
-      - ./storage/uploads:/app/storage/uploads   # A
-      # for C in prod: mount a volume to /data/uploads and set STORAGE_BASE
+      - ./storage/uploads:/app/storage/uploads 
     depends_on: [db, redis]
     ports:
       - "8000:8000"

@@ -21,18 +21,14 @@ def _get_task_app():
         return _TASK_APP
 
     try:
-        # Reuse already active Flask app (e.g. when called in-process in tests).
         _TASK_APP = current_app._get_current_object()
         return _TASK_APP
     except Exception:
-        # No active app context: create a dedicated app instance for this worker.
-        # Local import avoids circular import between app and tasks.
         from .. import create_app
 
         _TASK_APP = create_app()
         return _TASK_APP
 def _retry_sleep(attempt: int):
-    # Minimal exponential backoff with jitter-free simplicity
     time.sleep(min(2 ** attempt, 20))
 
 
@@ -66,16 +62,15 @@ def ingest_source(source_id: int):
                 db.session.commit()
                 return
 
-            batch_size = 32  # industry-standard safe batch size
+            batch_size = 32 
             model_name = current_app.config["EMBEDDING_MODEL_NAME"]
             expected_dim = current_app.config["EMBEDDING_DIMENSION"]
             for i in range(0, len(chunks), batch_size):
                 batch = chunks[i:i + batch_size]
 
-                # Retry embedding for transient failures
                 for attempt in range(3):
                     try:
-                        embs = LLMService.embed(batch)  # returns list
+                        embs = LLMService.embed(batch) 
                         break
                     except Exception as e:
                         if attempt == 2:
@@ -119,14 +114,12 @@ def retry_stale_knowledge_sources():
       - Automatic retries stop when retry_count >= 10.
       - Manual admin retries are still allowed beyond 10.
     """
-    # Query only queued/failed with retry_count < 10
     stale = KnowledgeSource.query.filter(
         KnowledgeSource.status.in_(("queued", "failed")),
         KnowledgeSource.retry_count < 10,
     ).all()
 
     for src in stale:
-        # Do not change retry_count here – ingest_source will increment it.
         ingest_source.delay(src.id)
 
 
@@ -138,7 +131,6 @@ def setup_periodic_ingestion_retry(sender, **kwargs):
     This uses a 24-hour interval based on the system time of the environment
     where Celery is running, avoiding time-zone assumptions.
     """
-    # 24 * 60 * 60 seconds
     sender.add_periodic_task(
         24 * 60 * 60,
         retry_stale_knowledge_sources.s(),

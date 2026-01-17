@@ -29,7 +29,6 @@ class User(db.Model):
     is_email_verified = db.Column(db.Boolean, default=False)
     token_version = db.Column(db.Integer, nullable=False, default=0, server_default="0")
 
-    # Soft delete
     is_deleted = db.Column(db.Boolean, nullable=False, default=False, server_default="false", index=True)
     deleted_at = db.Column(db.DateTime)
     deleted_by = db.Column(db.BigInteger, db.ForeignKey("users.id"))

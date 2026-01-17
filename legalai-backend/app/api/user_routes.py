@@ -72,7 +72,6 @@ def upload_avatar():
     db.session.commit()
     return jsonify({"avatarPath": g.user.avatar_path})
 
-# Bookmarks
 @bp.post("/me/bookmarks")
 @require_auth()
 def add_bookmark():
@@ -102,12 +101,11 @@ def delete_bookmark(bid):
     db.session.commit()
     return jsonify({"ok": True})
 
-# Activity
 @bp.post("/me/activity")
 @require_auth()
 def log_activity():
     if safe_mode_on():
-        return jsonify({"ok": True})  # ignore silently
+        return jsonify({"ok": True}) 
     d = request.get_json() or {}
     ev = ActivityEvent(user_id=g.user.id, event_type=d.get("eventType","unknown"), payload=d.get("payload",{}))
     db.session.add(ev); db.session.commit()

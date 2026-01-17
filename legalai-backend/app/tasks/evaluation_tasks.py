@@ -30,7 +30,6 @@ def log_rag_evaluation_async(self, **kwargs):
         try:
             RAGEvaluationService.log_evaluation(**kwargs)
         except Exception as exc:
-            # Retry with exponential backoff
             current_app.logger.warning(
                 "RAG evaluation task failed (attempt %s): %s",
                 self.request.retries + 1,

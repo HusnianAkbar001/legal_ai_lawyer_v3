@@ -27,8 +27,6 @@ import json
 from flask import current_app
 
 def _default_lawyer_categories() -> list[str]:
-    # Broad practice-area taxonomy commonly used across Pakistan firms/directories.
-    # Can be overridden via LAWYER_CATEGORIES_JSON in env.
     return [
         "Family Law",
         "Divorce / Khula",
@@ -99,7 +97,6 @@ def _lawyer_categories() -> list[str]:
             return [x.strip() for x in data]
     except Exception:
         pass
-    # Fallback if env is invalid
     return _default_lawyer_categories()
 
 @bp.get("/users")
@@ -140,7 +137,6 @@ def admin_create_user():
     if not name or not email or not phone or not cnic or not password:
         raise BadRequest("name, email, phone, cnic, password are required")
 
-    # Admin sets password (confirmed)
     validate_password(password)
 
     u = User(
@@ -155,31 +151,44 @@ def admin_create_user():
 
     db.session.add(u)
 
-    # Add audit event in the same transaction (no PII in payload)
     db.session.add(
         ActivityEvent(
             user_id=g.user.id,
             event_type="USER_CREATED",
-            payload={"targetUserId": None},  # fill after flush
+            payload={"targetUserId": None}, 
         )
     )
 
     try:
-        # Ensure u.id exists before commit so payload can store targetUserId
         db.session.flush()
 
-        # Update the last added ActivityEvent payload now that u.id exists
-        # (keeps a single atomic commit)
-        db.session.query(ActivityEvent).order_by(ActivityEvent.id.desc()).limit(1).update(
-            {ActivityEvent.payload: {"targetUserId": u.id}}
-        )
+        db.session.add(u)
 
+        evt = ActivityEvent(
+            user_id=g.user.id,
+            event_type="USER_CREATED",
+            payload={"targetUserId": None},
+        )
+        db.session.add(evt)
+
+        try:
+            db.session.flush()
+            evt.payload = {"targetUserId": u.id}
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            raise Conflict("User already exists (email or CNIC).")
+
+        current_app.logger.info(
+            "Admin created user: admin_user_id=%s target_user_id=%s",
+            g.user.id,
+            u.id,
+        )
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         raise Conflict("User already exists (email or CNIC).")
 
-    # Send verification email so user can login after verifying
     send_verification_email_task.delay(u.id)
 
     return jsonify({"id": u.id}), 201
@@ -207,11 +216,9 @@ def admin_update_user(user_id: int):
     if "isAdmin" in d:
         u.is_admin = bool(d.get("isAdmin"))
 
-    # Optional password reset by admin
     if "password" in d and d["password"]:
         validate_password(d["password"])
         u.password_hash = hash_password(d["password"])
-        # invalidate old tokens
         u.token_version = (u.token_version or 0) + 1
 
     db.session.commit()
@@ -237,13 +244,12 @@ def admin_soft_delete_user(user_id: int):
         raise NotFound("User not found")
 
     if getattr(u, "is_deleted", False):
-        return jsonify({"ok": True})  # idempotent
+        return jsonify({"ok": True}) 
 
     u.is_deleted = True
     u.deleted_at = datetime.utcnow()
     u.deleted_by = g.user.id
 
-    # force logout everywhere
     u.token_version = (u.token_version or 0) + 1
 
     db.session.commit()
@@ -315,7 +321,6 @@ def admin_get_lawyer(lawyer_id: int):
 @require_auth(admin=True)
 @limiter.limit("20 per minute")
 def admin_create_lawyer():
-    # multipart/form-data required: file + fields
     if "file" not in request.files:
         raise BadRequest("Missing profile picture file")
     f = request.files["file"]
@@ -334,7 +339,6 @@ def admin_create_lawyer():
     if category not in allowed:
         raise BadRequest("Invalid category")
 
-    # Mandatory picture; store relative DB-safe path
     abs_path = StorageService.save_avatar(f, "lawyers")
     rel_path = StorageService.public_path(abs_path)
 
@@ -349,7 +353,6 @@ def admin_create_lawyer():
     db.session.add(l)
     db.session.commit()
 
-    # Safe audit log (no PII)
     db.session.add(
         ActivityEvent(
             user_id=g.user.id,
@@ -370,7 +373,6 @@ def admin_update_lawyer(lawyer_id: int):
     if not l:
         raise NotFound("Lawyer not found")
 
-    # accept multipart (optional file) OR JSON
     if request.content_type and request.content_type.startswith("multipart/form-data"):
         full_name = request.form.get("fullName")
         email = request.form.get("email")
@@ -409,7 +411,6 @@ def admin_update_lawyer(lawyer_id: int):
         if "isActive" in d:
             l.is_active = bool(d.get("isActive"))
 
-    # Basic required fields must remain non-empty
     if not l.full_name or not l.email or not l.phone or not l.category or not l.profile_picture_path:
         raise BadRequest("fullName, email, phone, category, profile picture are required")
 
@@ -436,7 +437,7 @@ def admin_deactivate_lawyer(lawyer_id: int):
         raise NotFound("Lawyer not found")
 
     if not l.is_active:
-        return jsonify({"ok": True})  # idempotent
+        return jsonify({"ok": True}) 
 
     l.is_active = False
     db.session.commit()
@@ -467,7 +468,6 @@ def admin_list_contact_messages():
                 "email": m.email,
                 "phone": m.phone,
                 "subject": m.subject,
-                # description intentionally excluded from list view
                 "createdAt": m.created_at.isoformat() if m.created_at else None,
             },
         )
@@ -505,7 +505,6 @@ def admin_list_feedback():
                 "id": f.id,
                 "userId": f.user_id,
                 "rating": f.rating,
-                # comment excluded from list view
                 "createdAt": f.created_at.isoformat() if f.created_at else None,
             },
         )
@@ -533,7 +532,6 @@ def upload_knowledge():
     if "file" not in request.files:
         raise BadRequest("Missing file")
 
-    # Validate embedding configuration before upload
     expected_dim = current_app.config.get("EMBEDDING_DIMENSION")
     model_name = current_app.config.get("EMBEDDING_MODEL_NAME")
     
@@ -556,7 +554,6 @@ def upload_knowledge():
     if ext == "doc":
         ext = "docx"
 
-    # Only these types are supported for ingestion
     supported = {
         "txt", "csv", "tsv", "json",
         "pdf", "docx",
@@ -566,7 +563,6 @@ def upload_knowledge():
     if ext not in supported:
         raise BadRequest("Unsupported document type for ingestion")
 
-    # Compute content hash for deduplication and empty-file detection
     stream = f.stream
     stream.seek(0)
     hasher = hashlib.sha256()
@@ -578,7 +574,6 @@ def upload_knowledge():
         hasher.update(chunk)
         total_bytes += len(chunk)
 
-    # Reset stream so StorageService can read it normally
     stream.seek(0)
 
     if total_bytes == 0:
@@ -587,12 +582,10 @@ def upload_knowledge():
     content_hash = hasher.hexdigest()
 
 
-    # Reject duplicates (same content already ingested or attempted)
     existing = KnowledgeSource.query.filter_by(content_hash=content_hash).first()
     if existing is not None:
         raise BadRequest("A document with the same content has already been uploaded.")
 
-    # Save file to storage (size, extension, and content checks happen inside)
     path = StorageService.save_file(f, "knowledge")
 
     src = KnowledgeSource(
@@ -666,15 +659,12 @@ def retry_source(sid: int):
     if src.status == "done":
         raise BadRequest("This source is already ingested (done) and cannot be retried.")
 
-    # Only allow manual retry for queued/failed (matches UI + avoids inconsistent states)
     if src.status not in ("queued", "failed"):
         raise BadRequest("Retry is only allowed when status is queued or failed.")
 
-    # Enforce same retry limit as watchdog
     if (src.retry_count or 0) >= MAX_INGEST_RETRIES:
         raise BadRequest(f"Retry limit reached ({MAX_INGEST_RETRIES}).")
 
-    # Put back into queued state for the next ingestion attempt
     src.status = "queued"
     db.session.commit()
 
@@ -699,10 +689,9 @@ def rag_metrics_summary():
     """
     from sqlalchemy import func
     
-    # Time range filter (last 7 days by default)
     try:
         days = int(request.args.get("days", 7))
-        days = max(1, min(days, 90))  # Limit to 1-90 days
+        days = max(1, min(days, 90)) 
     except ValueError:
         days = 7
     
@@ -711,7 +700,6 @@ def rag_metrics_summary():
     
     q = RAGEvaluationLog.query.filter(RAGEvaluationLog.created_at >= cutoff)
     
-    # Total queries
     total_queries = q.count()
     
     if total_queries == 0:
@@ -721,7 +709,6 @@ def rag_metrics_summary():
             "summary": "No data available for this period"
         })
     
-    # Decision breakdown
     decisions = (
         db.session.query(
             RAGEvaluationLog.decision,
@@ -734,7 +721,6 @@ def rag_metrics_summary():
     
     decision_stats = {d.decision: d.count for d in decisions}
     
-    # Performance metrics
     avg_total_time = (
         db.session.query(func.avg(RAGEvaluationLog.total_time_ms))
         .filter(RAGEvaluationLog.created_at >= cutoff)
@@ -756,7 +742,6 @@ def rag_metrics_summary():
         .scalar() or 0
     )
     
-    # Token usage
     total_tokens_used = (
         db.session.query(func.sum(RAGEvaluationLog.total_tokens))
         .filter(
@@ -775,12 +760,10 @@ def rag_metrics_summary():
         .scalar() or 0
     )
     
-    # Quality metrics
     in_domain_count = q.filter_by(in_domain=True).count()
     fallback_count = q.filter_by(used_fallback=True).count()
     error_count = q.filter_by(error_occurred=True).count()
     
-    # Average distance for in-domain queries
     avg_distance = (
         db.session.query(func.avg(RAGEvaluationLog.best_distance))
         .filter(
@@ -791,7 +774,6 @@ def rag_metrics_summary():
         .scalar() or 0
     )
     
-    # Average contexts used
     avg_contexts = (
         db.session.query(func.avg(RAGEvaluationLog.contexts_used))
         .filter(RAGEvaluationLog.created_at >= cutoff)
@@ -856,7 +838,6 @@ def rag_metrics_queries():
     
     q = RAGEvaluationLog.query.filter(RAGEvaluationLog.created_at >= cutoff)
     
-    # Filters
     decision = request.args.get("decision")
     if decision in {"ANSWER", "OUT_OF_DOMAIN", "NO_HITS"}:
         q = q.filter_by(decision=decision)
@@ -872,7 +853,6 @@ def rag_metrics_queries():
         except ValueError:
             pass
     
-    # Order by most recent
     q = q.order_by(RAGEvaluationLog.created_at.desc())
     
     return jsonify(

@@ -19,7 +19,6 @@ def _as_safe_html(text: str) -> str:
     """
     if not text:
         return ""
-    # Normalize newlines and preserve formatting in HTML
     safe = escape(text).replace("\r\n", "\n").replace("\r", "\n")
     return safe.replace("\n", "<br/>")
 
@@ -65,12 +64,9 @@ def contact_us():
 
     cfg = current_app.config
     if not _smtp_ready(cfg):
-        # Message is saved in admin panel; email sending is optional but requested.
-        # Return 503 so frontend can show a "try again later" message if needed.
         current_app.logger.warning("ContactUs email skipped (SMTP not configured). msgId=%s userId=%s", msg.id, msg.user_id)
         raise ServiceUnavailable("Support email is not configured")
 
-    # Do NOT log subject/description (sensitive)
     safe_full_name = _as_safe_html(msg.full_name)
     safe_email = _as_safe_html(msg.email)
     safe_phone = _as_safe_html(msg.phone)
@@ -99,7 +95,6 @@ def contact_us():
 
         current_app.logger.info("ContactUs email sent. msgId=%s userId=%s", msg.id, msg.user_id)
     except Exception:
-        # Keep logs safe: do not include body contents
         current_app.logger.exception("ContactUs email failed. msgId=%s userId=%s", msg.id, msg.user_id)
         raise ServiceUnavailable("Failed to send support email")
 

@@ -9,7 +9,6 @@ from app.utils.security import hash_password
 @pytest.fixture(scope="session")
 def app():
     """Create application for testing"""
-    # Use in-memory SQLite for tests
     db_fd, db_path = tempfile.mkstemp()
     
     os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"

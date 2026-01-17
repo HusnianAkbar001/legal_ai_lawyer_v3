@@ -31,7 +31,7 @@ class KnowledgeChunk(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     source_id = db.Column(db.BigInteger, db.ForeignKey("knowledge_sources.id", ondelete="CASCADE"))
     chunk_text = db.Column(db.Text, nullable=False)
-    embedding = db.Column(Vector())  # Dynamic dimension support
+    embedding = db.Column(Vector())
     embedding_model = db.Column(db.String(100))
     embedding_dimension = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

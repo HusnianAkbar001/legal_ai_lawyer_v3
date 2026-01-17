@@ -12,11 +12,9 @@ class Draft(db.Model):
     title = db.Column(db.String(200), nullable=False)
     content_text = db.Column(db.Text, nullable=False)
 
-    # export paths (created on demand)
     pdf_path = db.Column(db.String(512))
     docx_path = db.Column(db.String(512))
 
-    # answers snapshot (option B)
     answers = db.Column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
     user_snapshot = db.Column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
 

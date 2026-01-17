@@ -14,7 +14,6 @@ class StorageService:
         if ext not in current_app.config["ALLOWED_EXTS"]:
             raise BadRequest("File type not allowed")
 
-        # Enforce size limit without loading full file in memory
         max_bytes = int(current_app.config["MAX_UPLOAD_MB"]) * 1024 * 1024
         stream = file_storage.stream
         pos = stream.tell()
@@ -24,7 +23,6 @@ class StorageService:
         if size > max_bytes:
             raise BadRequest(f"File too large (max {current_app.config['MAX_UPLOAD_MB']}MB)")
 
-        # Basic MIME / signature validation (lightweight, no extra deps)
         head = stream.read(16)
         stream.seek(pos, os.SEEK_SET)
 
@@ -40,7 +38,6 @@ class StorageService:
             return head.startswith(b"\xff\xd8\xff")
 
         def _is_zip_based():
-            # docx/xlsx are ZIP containers
             return head.startswith(b"PK\x03\x04")
 
         def _is_text_like():
@@ -77,12 +74,10 @@ class StorageService:
 
     @staticmethod
     def save_avatar(file_storage, subdir: str = "avatars") -> str:
-        # Only JPG/PNG
         ext = (file_storage.filename or "").rsplit(".", 1)[-1].lower()
         if ext not in {"jpg", "jpeg", "png"}:
             raise BadRequest("Only JPG and PNG images are allowed")
 
-        # Size limit: 5MB (do not rely on global MAX_UPLOAD_MB)
         max_bytes = 5 * 1024 * 1024
         stream = file_storage.stream
         pos = stream.tell()
@@ -92,11 +87,10 @@ class StorageService:
         if size > max_bytes:
             raise BadRequest("Image too large (max 5MB)")
 
-        # Decode + resize to 512x512 square
         try:
             stream.seek(0)
             img = Image.open(stream)
-            img.verify()  # quick integrity check
+            img.verify()  
             stream.seek(0)
             img = Image.open(stream)
 

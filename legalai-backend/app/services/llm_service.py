@@ -53,7 +53,6 @@ class LLMService:
         
         try:
             if provider in {"openai", "openrouter", "deepseek", "grok", "groq"}:
-                # Select appropriate key based on provider
                 if provider == "groq":
                     key = os.getenv("GROQ_API_KEY")
                 elif provider == "openrouter":
@@ -68,7 +67,6 @@ class LLMService:
                 if not key:
                     raise RuntimeError(f"Missing embedding API key for provider: {provider}")
 
-                # Use correct base URL for embeddings
                 if provider == "groq":
                     base_url = LLMService._groq_base()
                 elif provider == "openrouter":
@@ -91,7 +89,6 @@ class LLMService:
 
                 embs = [d["embedding"] for d in data]
                 
-                # Validate dimension
                 actual_dim = len(embs[0]) if embs else 0
                 if actual_dim != expected_dim:
                     current_app.logger.error(
@@ -141,7 +138,6 @@ class LLMService:
         model = current_app.config["CHAT_MODEL"]
 
         if provider in {"openai", "openrouter", "deepseek", "grok", "groq"}:
-            # Select appropriate key based on provider
             if provider == "groq":
                 key = os.getenv("GROQ_API_KEY")
                 base_url = LLMService._groq_base()
@@ -180,7 +176,6 @@ class LLMService:
             if not key:
                 raise RuntimeError("Missing anthropic key")
 
-            # Anthropic separates system prompt from messages
             system_parts = [m["content"] for m in messages if m.get("role") == "system" and m.get("content")]
             user_parts = [m for m in messages if m.get("role") in {"user", "assistant"}]
 
@@ -250,7 +245,6 @@ class LLMService:
             candidate = raw[start:end + 1] if start != -1 and end != -1 else raw
             obj = json.loads(candidate)
         except Exception:
-            # Fail-safe: do not wrongly refuse legal queries
             return {"category": "IN_DOMAIN_LEGAL", "confidence": 0.0, "topic": "other"}
 
         cat = str(obj.get("category") or "").strip()
@@ -263,7 +257,6 @@ class LLMService:
             conf = 0.0
         conf = max(0.0, min(1.0, conf))
 
-        # ✅ MUST FIX #2: If model is unsure, do not refuse (avoid false OUT_OF_DOMAIN)
         if cat in {"OUT_OF_DOMAIN", "PROMPT_INJECTION_OR_MISUSE"} and conf < 0.70:
             cat = "IN_DOMAIN_LEGAL"
 
@@ -453,23 +446,23 @@ class LLMService:
     def emergency_response(language="en", province=None):
         if language == "ur":
             return (
-                "⚠️ اگر آپ کو فوری خطرہ ہے تو ابھی محفوظ جگہ پر جائیں اور فوراً مدد لیں۔\n\n"
-                "✅ فوری قدم:\n"
+                "اگر آپ کو فوری خطرہ ہے تو ابھی محفوظ جگہ پر جائیں اور فوراً مدد لیں۔\n\n"
+                "فوری قدم:\n"
                 "1) اگر ممکن ہو تو فوراً گھر/جگہ چھوڑ کر کسی قابلِ اعتماد شخص کے پاس جائیں۔\n"
                 "2) ایمرجنسی میں 15 پر کال کریں۔\n"
                 "3) کسی قریبی رشتہ دار/دوست کو فوراً اطلاع دیں۔\n\n"
-                "✅ قانونی مدد:\n"
+                "قانونی مدد:\n"
                 "• آپ پولیس میں رپورٹ/FIR درج کروا سکتی ہیں۔\n"
                 "• آپ پروٹیکشن آرڈر/عدالتی تحفظ کے لیے درخواست دے سکتی ہیں۔\n\n"
                 "نوٹ: قوانین صوبے کے لحاظ سے مختلف ہو سکتے ہیں۔ یہ معلومات صرف آگاہی کے لیے ہیں۔"
             )
         return (
-            "⚠️ If you are in immediate danger, please prioritize your safety first.\n\n"
-            "✅ Immediate steps:\n"
+            "If you are in immediate danger, please prioritize your safety first.\n\n"
+            "Immediate steps:\n"
             "1) Move to a safe place (trusted friend/relative). \n"
             "2) Call emergency services (15 in Pakistan). \n"
             "3) Inform someone you trust immediately.\n\n"
-            "✅ Legal steps:\n"
+            "Legal steps:\n"
             "• You may report to police / file an FIR.\n"
             "• You can seek a protection order or legal protection through courts.\n\n"
             "Note: Laws may vary by province. This information is for awareness only."

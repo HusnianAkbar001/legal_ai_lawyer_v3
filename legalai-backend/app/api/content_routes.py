@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, current_app
-from ..models.content import Right, Template  # adjust if your model names differ
+from ..models.content import Right, Template  
 from ..extensions import db
 
 bp = Blueprint("content", __name__)

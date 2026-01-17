@@ -39,5 +39,4 @@ def require_auth(admin=False):
     return decorator
 
 def safe_mode_on():
-    # Frontend will send `X-Safe-Mode: 1` when enabled
     return request.headers.get("X-Safe-Mode", "0") == "1"

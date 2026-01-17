@@ -73,7 +73,6 @@ def register_device():
     if d.get("platform") not in {"android","ios"} or not d.get("token"):
         raise BadRequest("platform and token required")
 
-    # upsert token
     DeviceToken.query.filter_by(token=d["token"]).delete()
     dt = DeviceToken(user_id=g.user.id, platform=d["platform"], token=d["token"])
     db.session.add(dt); db.session.commit()

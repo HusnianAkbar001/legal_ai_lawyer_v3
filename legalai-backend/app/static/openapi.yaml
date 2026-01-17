@@ -5,7 +5,7 @@ info:
   description: Swagger spec generated from the provided Postman collection.
 servers:
   - url: https://unflexible-zora-rostrally.ngrok-free.dev/
-
+  - url: http://127.0.0.1:5000
 description: |
   ## Safe Mode
 

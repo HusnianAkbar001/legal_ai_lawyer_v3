@@ -26,12 +26,10 @@ def setup_logging(app) -> None:
     """
     log_level = _resolve_log_level(app)
 
-    # File logging destination (env override) — default requested by you
     log_file = os.getenv("LOG_FILE", "logs/app.log")
     log_path = Path(log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Avoid duplicated handlers on Flask reload
     root = logging.getLogger()
     root.setLevel(log_level)
 
@@ -39,17 +37,14 @@ def setup_logging(app) -> None:
         fmt="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
 
-    # Clear existing handlers to prevent double logs (common in debug reloader)
     for h in list(root.handlers):
         root.removeHandler(h)
 
-    # Console handler
     sh = logging.StreamHandler()
     sh.setLevel(log_level)
     sh.setFormatter(formatter)
     root.addHandler(sh)
 
-    # Rotating file handler (10MB x 5 backups)
     fh = RotatingFileHandler(
         log_path,
         maxBytes=10 * 1024 * 1024,
@@ -60,11 +55,9 @@ def setup_logging(app) -> None:
     fh.setFormatter(formatter)
     root.addHandler(fh)
 
-    # Ensure Flask app logger propagates to root handlers
     app.logger.handlers = []
     app.logger.propagate = True
     app.logger.setLevel(log_level)
 
-    # Optional: reduce noisy libraries
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("werkzeug").setLevel(logging.INFO)

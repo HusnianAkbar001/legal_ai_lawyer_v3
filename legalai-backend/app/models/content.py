@@ -9,7 +9,7 @@ class Right(db.Model):
     topic = db.Column(db.String(200), nullable=False, index=True)
     body = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(120), index=True)
-    language = db.Column(db.String(10), default="en")  # en/ur
+    language = db.Column(db.String(10), default="en") 
     tags = db.Column(db.ARRAY(db.String), default=[])
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -20,7 +20,7 @@ class Template(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    body = db.Column(db.Text, nullable=False)  # with placeholders
+    body = db.Column(db.Text, nullable=False) 
     category = db.Column(db.String(120), index=True)
     language = db.Column(db.String(10), default="en")
     tags = db.Column(db.ARRAY(db.String), default=[])
@@ -33,7 +33,7 @@ class Pathway(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     summary = db.Column(db.Text)
-    steps = db.Column(JSON().with_variant(JSONB, "postgresql"), nullable=False)  # list of steps, decisions etc.
+    steps = db.Column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
     category = db.Column(db.String(120), index=True)
     language = db.Column(db.String(10), default="en")
     tags = db.Column(db.ARRAY(db.String), default=[])

@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 from pypdf import PdfReader
 from docx import Document
 
-# Optional heavy deps (enabled by requirements update)
 try:
     from openpyxl import load_workbook
 except Exception:
@@ -33,23 +32,19 @@ def extract_text_from_source(src):
     } and src.file_path:
         path = src.file_path
 
-        # --- PDF ---
         if src.source_type == "pdf":
             reader = PdfReader(path)
             return "\n".join(page.extract_text() or "" for page in reader.pages)
 
-        # --- Word ---
         if src.source_type in {"docx", "doc"}:
             doc = Document(path)
             return "\n".join(p.text for p in doc.paragraphs)
 
-        # --- Plain text / CSV / TSV / JSON / SVG ---
         if src.source_type in {"txt", "csv", "tsv", "json", "svg"}:
             try:
                 with open(path, "r", encoding="utf-8", errors="ignore") as f:
                     raw = f.read()
                 
-                # SVG: extract text content
                 if src.source_type == "svg":
                     try:
                         soup = BeautifulSoup(raw, "xml")
@@ -57,7 +52,6 @@ def extract_text_from_source(src):
                     except Exception:
                         return ""
                 
-                # JSON: pretty format
                 if src.source_type == "json":
                     try:
                         obj = jsonlib.loads(raw)
@@ -65,7 +59,6 @@ def extract_text_from_source(src):
                     except Exception:
                         return raw
                 
-                # CSV/TSV: convert to readable format
                 if src.source_type in {"csv", "tsv"}:
                     delim = "\t" if src.source_type == "tsv" else ","
                     out_lines = []
@@ -76,12 +69,10 @@ def extract_text_from_source(src):
                                 out_lines.append("\t".join(row))
                     return "\n".join(out_lines)
                 
-                # Plain text
                 return raw
             except Exception:
                 return ""
 
-        # --- Excel ---
         if src.source_type == "xlsx":
             if load_workbook is None:
                 return ""
@@ -100,7 +91,6 @@ def extract_text_from_source(src):
             except Exception:
                 return ""
 
-        # --- Images with OCR ---
         if src.source_type in {"png", "jpg", "jpeg"}:
             if Image is None or pytesseract is None:
                 return ""
@@ -110,7 +100,6 @@ def extract_text_from_source(src):
             except Exception:
                 return ""
 
-    # --- URL ---
     if src.source_type == "url" and src.url:
         try:
             html = requests.get(src.url, timeout=20).text

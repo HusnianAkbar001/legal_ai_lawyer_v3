@@ -17,6 +17,6 @@ class DeviceToken(db.Model):
     __tablename__ = "device_tokens"
     id = db.Column(db.BigInteger, primary_key=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    platform = db.Column(db.String(10), nullable=False) # android/ios
+    platform = db.Column(db.String(10), nullable=False) 
     token = db.Column(db.String(512), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -13,7 +13,7 @@ class TokenCounter:
     Production-grade token counter with caching and error handling.
     """
     
-    _encoders = {}  # Cache encoders per model
+    _encoders = {}  
     
     @staticmethod
     def count_tokens(text: str, model: str = "gpt-4") -> int:
@@ -31,12 +31,10 @@ class TokenCounter:
             return 0
             
         try:
-            # Get or create cached encoder
             if model not in TokenCounter._encoders:
                 try:
                     TokenCounter._encoders[model] = tiktoken.encoding_for_model(model)
                 except KeyError:
-                    # Fallback to cl100k_base (used by gpt-4, gpt-3.5-turbo)
                     current_app.logger.warning(
                         "Model %s not found in tiktoken, using cl100k_base encoding", 
                         model
@@ -47,7 +45,6 @@ class TokenCounter:
             return len(encoder.encode(text))
             
         except Exception as e:
-            # Fallback: estimate tokens (1 token ≈ 4 chars for English)
             current_app.logger.warning(
                 "Token counting failed for model %s: %s. Using fallback estimation.",
                 model,
@@ -71,8 +68,7 @@ class TokenCounter:
             return 0
             
         try:
-            # Message formatting overhead per OpenAI docs
-            tokens_per_message = 3  # <|start|>role/name\n content<|end|>\n
+            tokens_per_message = 3  
             tokens_per_name = 1
             
             total = 0
@@ -84,7 +80,7 @@ class TokenCounter:
                     if key == "name":
                         total += tokens_per_name
             
-            total += 3  # Every reply is primed with <|start|>assistant<|message|>
+            total += 3 
             return total
             
         except Exception as e:
@@ -92,7 +88,6 @@ class TokenCounter:
                 "Message token counting failed: %s. Using fallback.",
                 str(e),
             )
-            # Fallback: sum all content
             total_text = " ".join(
                 str(msg.get("content", "")) for msg in messages if msg.get("content")
             )

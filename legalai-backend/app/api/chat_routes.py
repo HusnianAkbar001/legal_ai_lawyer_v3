@@ -81,11 +81,7 @@ def ask():
     conv_id = data.get("conversationId")
     memory_limit = current_app.config.get("CHAT_MEMORY_LIMIT", 10)
 
-    # -------------------------
-    # SAFE MODE (no DB writes)
-    # -------------------------
     if safe_mode_on():
-        # ✅ Fast emergency detection (before classifier)
         if _detect_emergency_fast(q):
             route = {"category": "EMERGENCY", "confidence": 1.0, "topic": "emergency"}
         else:
@@ -103,7 +99,6 @@ def ask():
             route.get("confidence"),
         )
 
-        # ✅ Handle greetings / app-help early (no RAG needed)
         if category == "GREETING_OR_APP_HELP":
             msg = (
                 "Hello! I can help with legal awareness for women in Pakistan (workplace harassment, domestic violence, family matters, cyber harassment). "
@@ -115,7 +110,6 @@ def ask():
             )
             return jsonify({"answer": msg, "conversationId": None, "contextsUsed": 0})
 
-        # ✅ Emergency routing
         if category == "EMERGENCY":
             emergency_msg = LLMService.emergency_response(language=language, province=province)
             total_time_ms = int((time.perf_counter() - request_start_time) * 1000)
@@ -149,7 +143,6 @@ def ask():
 
             return jsonify({"answer": emergency_msg, "conversationId": None, "contextsUsed": 0})
 
-        # ✅ Refuse only for true out-of-domain / misuse
         if category in {"OUT_OF_DOMAIN", "PROMPT_INJECTION_OR_MISUSE"}:
             refusal = (
                 "I am an AI legal lawyer assistant. I can only help you with legal awareness. "
@@ -189,7 +182,6 @@ def ask():
 
             return jsonify({"answer": refusal, "conversationId": None, "contextsUsed": 0})
 
-        # ✅ 1) Only now do embedding + RAG (for citations)
         embedding_start = time.perf_counter()
         emb = LLMService.embed(q)
         embedding_time_ms = int((time.perf_counter() - embedding_start) * 1000)
@@ -246,9 +238,7 @@ def ask():
 
         return jsonify({"answer": answer, "conversationId": None, "contextsUsed": len(contexts)})
 
-    # --------------------------------
-    # NORMAL MODE (DB writes + memory)
-    # --------------------------------
+
     is_new_conversation = conv_id is None
 
     if conv_id is not None:
@@ -268,7 +258,6 @@ def ask():
 
     history = _recent_conversation_messages(conv_id, limit=memory_limit)
 
-    # ✅ Fast emergency detection (before classifier)
     if _detect_emergency_fast(q):
         route = {"category": "EMERGENCY", "confidence": 1.0, "topic": "emergency"}
     else:
@@ -317,7 +306,6 @@ def ask():
 
         return jsonify({"answer": msg, "conversationId": conv_id, "contextsUsed": 0})
 
-    # ✅ Emergency routing (store messages in conversation)
     if category == "EMERGENCY":
         emergency_msg = LLMService.emergency_response(language=language, province=province)
 
@@ -370,7 +358,6 @@ def ask():
 
         return jsonify({"answer": emergency_msg, "conversationId": conv_id, "contextsUsed": 0})
 
-    # ✅ Refuse only for true out-of-domain/misuse (store messages)
     if category in {"OUT_OF_DOMAIN", "PROMPT_INJECTION_OR_MISUSE"}:
         refusal = (
             "I am an AI legal lawyer assistant. I can only help you with legal awareness. "
@@ -429,7 +416,6 @@ def ask():
 
         return jsonify({"answer": refusal, "conversationId": conv_id, "contextsUsed": 0})
 
-    # ✅ 1) Now do embedding + RAG (for VERIFIED sources only)
     embedding_start = time.perf_counter()
     emb = LLMService.embed(q)
     embedding_time_ms = int((time.perf_counter() - embedding_start) * 1000)

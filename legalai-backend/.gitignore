@@ -146,3 +146,7 @@ build/
 # If you WANT to commit built web assets in Android/iOS, remove these lines:
 **/android/app/src/main/assets/public/
 **/ios/App/App/public/
+
+legalai-backend\celerybeat-schedule.bak
+legalai-backend\celerybeat-schedule.dat
+legalai-backend\celerybeat-schedule.dir

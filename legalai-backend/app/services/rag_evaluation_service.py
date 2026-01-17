@@ -26,18 +26,15 @@ class RAGEvaluationService:
     
     @staticmethod
     def log_evaluation(
-        # Request Context
         user_id: int,
         conversation_id: Optional[int],
         language: str,
         safe_mode: bool,
         is_new_conversation: bool,
         
-        # Question & Answer
         question: str,
         answer: str,
         
-        # RAG Metrics
         threshold: float,
         best_distance: Optional[float],
         contexts_found: int,
@@ -46,21 +43,17 @@ class RAGEvaluationService:
         decision: str,
         chunk_ids: List[int],
         
-        # Performance
         embedding_time_ms: int,
         llm_time_ms: Optional[int],
         total_time_ms: int,
         
-        # Models
         embedding_model: str,
         embedding_dimension: Optional[int],
         chat_model: Optional[str],
         
-        # Messages for token counting
         prompt_messages: Optional[List[Dict]] = None,
         completion_text: Optional[str] = None,
         
-        # Error info
         error_occurred: bool = False,
         error_type: Optional[str] = None,
         error_message: Optional[str] = None,
@@ -72,11 +65,9 @@ class RAGEvaluationService:
             Optional[int]: Evaluation log ID if successful, None if failed
         """
         try:
-            # Sanitize text (truncate if too long for storage)
             question_sanitized = question[:5000] if question else ""
             answer_sanitized = answer[:10000] if answer else ""
             
-            # Detect fallback responses
             fallback_indicators = [
                 "can only help with legal awareness",
                 "could not find relevant information",
@@ -89,7 +80,6 @@ class RAGEvaluationService:
                 for indicator in fallback_indicators
             )
             
-            # Detect disclaimer
             disclaimer_indicators = [
                 "this information is provided only",
                 "please contact a lawyer",
@@ -100,7 +90,6 @@ class RAGEvaluationService:
                 for indicator in disclaimer_indicators
             )
             
-            # Get source attribution
             source_titles = []
             if chunk_ids:
                 try:
@@ -119,7 +108,6 @@ class RAGEvaluationService:
                         str(e)
                     )
             
-            # Count tokens
             prompt_tokens = None
             completion_tokens = None
             total_tokens = None
@@ -147,22 +135,18 @@ class RAGEvaluationService:
                         str(e)
                     )
             
-            # Create evaluation log
             eval_log = RAGEvaluationLog(
-                # Context
                 user_id=user_id,
                 conversation_id=conversation_id,
                 language=language,
                 safe_mode=safe_mode,
                 is_new_conversation=is_new_conversation,
                 
-                # Content
                 question_text=question_sanitized,
                 question_length=len(question),
                 answer_text=answer_sanitized,
                 answer_length=len(answer),
                 
-                # RAG
                 threshold_used=threshold,
                 best_distance=best_distance,
                 contexts_found=contexts_found,
@@ -172,26 +156,21 @@ class RAGEvaluationService:
                 source_chunk_ids=chunk_ids if chunk_ids else [],
                 source_titles=source_titles if source_titles else [],
                 
-                # Performance
                 embedding_time_ms=embedding_time_ms,
                 llm_time_ms=llm_time_ms,
                 total_time_ms=total_time_ms,
                 
-                # Tokens
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
                 
-                # Models
                 embedding_model=embedding_model,
                 embedding_dimension=embedding_dimension,
                 chat_model=chat_model,
                 
-                # Quality
                 used_fallback=used_fallback,
                 disclaimer_added=disclaimer_added,
                 
-                # Errors
                 error_occurred=error_occurred,
                 error_type=error_type,
                 error_message=error_message[:500] if error_message else None,
@@ -200,7 +179,6 @@ class RAGEvaluationService:
             db.session.add(eval_log)
             db.session.commit()
             
-            # Log summary (no PII)
             current_app.logger.info(
                 "RAG evaluation logged: id=%s user=%s decision=%s in_domain=%s "
                 "contexts=%s/%s distance=%.4f threshold=%.4f fallback=%s "
